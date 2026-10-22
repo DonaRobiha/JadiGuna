@@ -23,26 +23,53 @@ class LocalDatabase {
   }
 
   Future<Database> _initDB(String filePath) async {
-    if (!kIsWeb) {
-      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-        sqfliteFfiInit();
-        databaseFactory = databaseFactoryFfi;
-      }
+    // Inisialisasi SQLite untuk Windows, Linux, dan macOS.
+    // Android tetap menggunakan SQLite bawaan sqflite.
+    if (!kIsWeb &&
+        (Platform.isWindows ||
+            Platform.isLinux ||
+            Platform.isMacOS)) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
     }
 
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+    // Menentukan lokasi database sesuai platform.
+    late final String path;
 
+    if (kIsWeb) {
+      // Browser menggunakan nama database, bukan path filesystem.
+      path = 'jadiguna_web.db';
+    } else {
+      // Android dan desktop menggunakan lokasi database lokal.
+      final dbPath = await getDatabasesPath();
+      path = join(dbPath, filePath);
+    }
+
+    // Membuka database dan membuat tabel saat pertama kali digunakan.
     return await openDatabase(
       path,
       version: 1,
       onCreate: _createDB,
       onOpen: (db) async {
+        // Membersihkan data percakapan contoh tertentu.
         try {
-          await db.delete('conversations', where: "id = 'conv-001' OR buyer_id = 'current-user-1'");
-          await db.delete('messages', where: "conversation_id = 'conv-001'");
-          await db.delete('favorites', where: "user_id = 'current-user-1'");
-        } catch (_) {}
+          await db.delete(
+            'conversations',
+            where: "id = 'conv-001' OR buyer_id = 'current-user-1'",
+          );
+
+          await db.delete(
+            'messages',
+            where: "conversation_id = 'conv-001'",
+          );
+
+          await db.delete(
+            'favorites',
+            where: "user_id = 'current-user-1'",
+          );
+        } catch (e) {
+          debugPrint('Gagal membersihkan data contoh: $e');
+        }
       },
     );
   }

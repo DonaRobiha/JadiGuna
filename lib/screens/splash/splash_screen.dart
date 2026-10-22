@@ -1,6 +1,8 @@
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
@@ -16,7 +18,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -24,17 +27,30 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 1200),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+    _scaleAnimation = Tween<double>(
+      begin: 0.85,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: Curves.easeOutBack,
+      ),
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeIn),
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: Curves.easeIn,
+      ),
     );
 
     _animController.forward();
@@ -42,14 +58,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _navigateNext() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final listingProvider = Provider.of<ListingProvider>(context, listen: false);
+    final authProvider =
+        Provider.of<AuthProvider>(context, listen: false);
+    final listingProvider =
+        Provider.of<ListingProvider>(context, listen: false);
 
     await Future.delayed(const Duration(milliseconds: 2200));
     if (!mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
-    final isFirstInstall = prefs.getBool(AppConstants.keyIsFirstInstall) ?? true;
+    final isFirstInstall =
+        prefs.getBool(AppConstants.keyIsFirstInstall) ?? true;
 
     await authProvider.init();
     await listingProvider.init(authProvider.user?.id);
@@ -59,17 +78,23 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (isFirstInstall) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+        MaterialPageRoute(
+          builder: (_) => const OnboardingScreen(),
+        ),
       );
     } else if (authProvider.isAuthenticated) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        MaterialPageRoute(
+          builder: (_) => const MainNavigationScreen(),
+        ),
       );
     } else {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(),
+        ),
       );
     }
   }
@@ -84,76 +109,96 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primaryDark,
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // App Logo Icon
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
+      body: SafeArea(
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo tanpa lingkaran putih
+                  Image.asset(
+                    'assets/logo_jadiguna.png',
+                    width: 145,
+                    height: 145,
+                    fit: BoxFit.contain,
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // Nama aplikasi
+                  
+                // Brand Name
+                RichText(
+                  text: const TextSpan(
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 40,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.5,
+                      height: 1.1,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: 'jadi',
+                        style: TextStyle(
+                          color: Color(0xFFFFF1D6),
+                        ),
+                      ),
+                      TextSpan(
+                        text: 'Guna',
+                        style: TextStyle(
+                          color: Color(0xFFA5D943),
+                        ),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.recycling_rounded,
-                    size: 64,
-                    color: AppColors.primary,
-                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 14),
 
-                // Brand Name
-                const Text(
-                  AppConstants.appName,
-                  style: TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
 
-                // Tagline
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    AppConstants.appTagline,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
+                  // Tagline
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Text(
+                      AppConstants.appTagline,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFFF4F1E8),
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 48),
 
-                // Modern Loading Indicator
-                const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  const SizedBox(height: 42),
+
+                  // Loading indicator
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        const Color(0xFFA5D943).withValues(alpha: 0.9),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

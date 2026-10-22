@@ -108,7 +108,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppColors.primarySurface,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.recycling_rounded, color: AppColors.primary, size: 28),
+                      
+                      child: Image.asset(
+                      'assets/logo_jadiguna.png',
+                      width: 40,
+                      height: 40,
+                       fit: BoxFit.contain,
+                        ),
                     ),
                     const SizedBox(width: 10),
                     const Text(
