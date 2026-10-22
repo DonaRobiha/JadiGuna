@@ -68,18 +68,34 @@ class _SearchScreenState extends State<SearchScreen> {
                     const Divider(),
 
                     // Free Items Switch
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Hanya Barang Gratis (Rp 0)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: const Text('Tampilkan barang hibah/pemberian cuma-cuma', style: TextStyle(fontSize: 12)),
-                      value: provider.onlyFree,
-                      activeColor: AppColors.freeBadge,
-                      onChanged: (val) {
-                        provider.setOnlyFree(val);
-                        setModalState(() {});
-                      },
+                    Material(
+                      color: Colors.transparent,
+                      child: SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Hanya Barang Gratis (Rp 0)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        subtitle: const Text('Tampilkan barang hibah/pemberian cuma-cuma', style: TextStyle(fontSize: 12)),
+                        value: provider.onlyFree,
+                        activeThumbColor: AppColors.freeBadge,
+                        onChanged: (val) {
+                          provider.setOnlyFree(val);
+                          setModalState(() {});
+                        },
+                      ),
                     ),
                     const SizedBox(height: 12),
+
+                    // Category Filter
+                    const Text('Kategori Pilihan:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildCategoryChip(provider, null, 'Semua Kategori', setModalState),
+                        ...provider.categories.map((c) => _buildCategoryChip(provider, c.slug, c.name, setModalState)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
 
                     // Sort By
                     const Text('Urutkan Berdasarkan:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
@@ -126,6 +142,26 @@ class _SearchScreenState extends State<SearchScreen> {
             );
           },
         );
+      },
+    );
+  }
+
+  Widget _buildCategoryChip(ListingProvider provider, String? slug, String label, StateSetter setModalState) {
+    final isSelected = (slug == null && (provider.selectedCategorySlug.isEmpty || provider.selectedCategorySlug == 'semua')) ||
+        (slug != null && provider.selectedCategorySlug == slug);
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: isSelected ? Colors.white : AppColors.textPrimary,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: AppColors.primary,
+      onSelected: (_) {
+        provider.setCategory(slug ?? 'semua');
+        setModalState(() {});
       },
     );
   }
@@ -255,6 +291,20 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                   const SizedBox(width: 8),
 
+                  // Active Category Chip
+                  if (listingProvider.selectedCategorySlug.isNotEmpty &&
+                      listingProvider.selectedCategorySlug != 'semua') ...[
+                    InputChip(
+                      avatar: const Icon(Icons.category_outlined, size: 14),
+                      label: Text(
+                        'Kategori: ${listingProvider.categories.firstWhere((c) => c.slug == listingProvider.selectedCategorySlug, orElse: () => listingProvider.categories.first).name}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      onDeleted: () => listingProvider.setCategory('semua'),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+
                   // Active Condition Chip
                   if (listingProvider.selectedCondition != null) ...[
                     InputChip(
@@ -266,11 +316,6 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     const SizedBox(width: 8),
                   ],
-
-                  Text(
-                    '${results.length} barang ditemukan',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
-                  ),
                 ],
               ),
             ),
@@ -289,7 +334,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     padding: const EdgeInsets.all(16),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      childAspectRatio: 0.79,
+                      childAspectRatio: 0.58,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                     ),

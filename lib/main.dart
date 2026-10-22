@@ -63,6 +63,7 @@ void main() async {
     try {
       await Supabase.initialize(
         url: SupabaseConstants.supabaseUrl,
+        // ignore: deprecated_member_use
         anonKey: SupabaseConstants.supabaseAnonKey,
       );
     } catch (e) {
@@ -70,5 +71,53 @@ void main() async {
     }
   }
 
-  runApp(const JadiGunaApp());
+  // Jalankan aplikasi dengan penanganan otomatis untuk mode single-view maupun web multi-view.
+  final dispatcher = WidgetsBinding.instance.platformDispatcher;
+  if (dispatcher.implicitView != null) {
+    runApp(const JadiGunaApp());
+  } else {
+    runWidget(const _SafeWebMultiViewApp(child: JadiGunaApp()));
+  }
+}
+
+/// Pembungkus khusus untuk lingkungan Flutter Web / multi-view
+/// ketika platformDispatcher.implicitView bernilai null.
+class _SafeWebMultiViewApp extends StatefulWidget {
+  final Widget child;
+  const _SafeWebMultiViewApp({required this.child});
+
+  @override
+  State<_SafeWebMultiViewApp> createState() => _SafeWebMultiViewAppState();
+}
+
+class _SafeWebMultiViewAppState extends State<_SafeWebMultiViewApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeMetrics() {
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dispatcher = WidgetsBinding.instance.platformDispatcher;
+    final view = dispatcher.implicitView ?? (dispatcher.views.isNotEmpty ? dispatcher.views.first : null);
+    if (view == null) {
+      return const SizedBox.shrink();
+    }
+    return View(
+      view: view,
+      child: widget.child,
+    );
+  }
 }

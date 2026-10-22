@@ -11,8 +11,21 @@ import '../../services/ai_service.dart';
 
 class AddEditListingScreen extends StatefulWidget {
   final ListingModel? listingToEdit;
+  final String? initialTitle;
+  final String? initialDescription;
+  final String? initialCategory;
+  final String? initialCondition;
+  final bool? initialIsFree;
 
-  const AddEditListingScreen({super.key, this.listingToEdit});
+  const AddEditListingScreen({
+    super.key,
+    this.listingToEdit,
+    this.initialTitle,
+    this.initialDescription,
+    this.initialCategory,
+    this.initialCondition,
+    this.initialIsFree,
+  });
 
   @override
   State<AddEditListingScreen> createState() => _AddEditListingScreenState();
@@ -43,30 +56,30 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
     super.initState();
     final edit = widget.listingToEdit;
     _titleController = TextEditingController(
-      text: edit?.title ?? 'Kursi Belajar Ergonomis Putar',
+      text: edit?.title ?? widget.initialTitle ?? 'Kursi Belajar Ergonomis Putar',
     );
     _descController = TextEditingController(
-      text: edit?.description ??
+      text: edit?.description ?? widget.initialDescription ??
           'Kursi kerja putar hidrolik masih berfungsi lancar turun-naik tanpa macet. Busa dudukan masih empuk, tebal, dan bebas noda basah. Roda lima lancar menggelinding di ubin atau karpet kos. Minus pemakaian normal di armrest kiri sedikit gores halus. Sangat cocok untuk mahasiswa...',
     );
     _priceController = TextEditingController(
       text: (edit != null && !edit.isFree)
           ? edit.price.toString()
-          : (edit == null ? '85000' : ''),
+          : ((edit == null && (widget.initialIsFree ?? false)) ? '' : (edit == null ? '85000' : '')),
     );
     _locationController = TextEditingController(
       text: edit?.locationName ?? 'Kos Griya Mahasiswa, Pogung Kidul, Kec. Mlati, Kabupaten Sleman, D.I. Yogyakarta',
     );
 
-    _selectedCategory = edit?.categoryName ?? 'Furnitur';
-    _selectedCondition = edit?.condition ?? 'Sangat Baik';
-    _isFree = edit?.isFree ?? false;
+    _selectedCategory = edit?.categoryName ?? widget.initialCategory ?? 'Furnitur';
+    _selectedCondition = edit?.condition ?? widget.initialCondition ?? 'Sangat Baik';
+    _isFree = edit?.isFree ?? widget.initialIsFree ?? false;
 
     if (edit != null && edit.images.isNotEmpty) {
       _photos.addAll(edit.images);
     } else {
       // Default photo from Image 4
-      _photos.add('https://images.unsplash.com/photo-1580481077191-c29223c84996?w=800');
+      _photos.add('https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800');
     }
   }
 
@@ -433,37 +446,7 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                     if (Navigator.canPop(context)) Navigator.pop(context);
                   },
                 ),
-
-                // Brand Circle Logo
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 17,
-                      height: 17,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFC29B72), width: 1.8),
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFC29B72),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
 
                 // Title "Pasang Iklan"
                 const Text(
@@ -482,16 +465,6 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                   icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary, size: 22),
                   onPressed: () {},
                 ),
-
-                // User Profile Picture
-                const CircleAvatar(
-                  radius: 17,
-                  backgroundColor: AppColors.primaryLight,
-                  backgroundImage: NetworkImage(
-                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-                  ),
-                ),
-                const SizedBox(width: 6),
               ],
             ),
           ),

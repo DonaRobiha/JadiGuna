@@ -58,11 +58,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         children: [
           _buildSectionTitle('Keamanan & Autentikasi'),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
+          Material(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              side: const BorderSide(color: AppColors.border),
             ),
             child: Column(
               children: [
@@ -76,7 +76,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: const TextStyle(fontSize: 12),
                   ),
                   value: _biometricEnabled && authProvider.isBiometricsSupported,
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                   onChanged: authProvider.isBiometricsSupported ? _toggleBiometric : null,
                 ),
               ],
@@ -85,11 +85,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 20),
 
           _buildSectionTitle('Preferensi Tampilan & Notifikasi'),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
+          Material(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              side: const BorderSide(color: AppColors.border),
             ),
             child: Column(
               children: [
@@ -98,7 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: const Text('Notifikasi Aplikasi', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   subtitle: const Text('Pesan masuk dan perubahan status barang', style: TextStyle(fontSize: 12)),
                   value: _notificationsEnabled,
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                   onChanged: _toggleNotifications,
                 ),
                 const Divider(height: 1, indent: 56),
@@ -107,7 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: const Text('Mode Gelap (Dark Mode)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   subtitle: const Text('Tampilan gelap hemat baterai dan ramah mata', style: TextStyle(fontSize: 12)),
                   value: themeProvider.isDarkMode,
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                   onChanged: (val) => themeProvider.toggleTheme(val),
                 ),
               ],

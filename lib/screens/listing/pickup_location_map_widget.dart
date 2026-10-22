@@ -122,8 +122,8 @@ class _PickupLocationMapWidgetState extends State<PickupLocationMapWidget> with 
                   markers: [
                     Marker(
                       point: _point,
-                      width: 150,
-                      height: 80,
+                      width: 160,
+                      height: 96,
                       alignment: Alignment.topCenter,
                       child: _buildPickupMarker(),
                     ),
@@ -301,80 +301,83 @@ class _PickupLocationMapWidgetState extends State<PickupLocationMapWidget> with 
   }
 
   Widget _buildPickupMarker() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Tag Callout
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: AppColors.error,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 5),
-              const Text(
-                'Titik Pengambilan (COD)',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 2),
-
-        // Animated Pulse & Pin
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            AnimatedBuilder(
-              animation: _pulseAnimation,
-              builder: (context, child) {
-                return Container(
-                  width: 38 * _pulseAnimation.value,
-                  height: 38 * _pulseAnimation.value,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.error.withValues(alpha: (0.3 / _pulseAnimation.value).clamp(0.0, 1.0)),
-                  ),
-                );
-              },
-            ),
-            const Icon(
-              Icons.location_on_rounded,
-              color: AppColors.error,
-              size: 32,
-              shadows: [
-                Shadow(
-                  color: Colors.black38,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Tag Callout
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
                   blurRadius: 6,
-                  offset: Offset(0, 3),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-          ],
-        ),
-      ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: AppColors.error,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                const Text(
+                  'Titik Pengambilan (COD)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+
+          // Animated Pulse & Pin
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (context, child) {
+                  return Container(
+                    width: 38 * _pulseAnimation.value,
+                    height: 38 * _pulseAnimation.value,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.error.withValues(alpha: (0.3 / _pulseAnimation.value).clamp(0.0, 1.0)),
+                    ),
+                  );
+                },
+              ),
+              const Icon(
+                Icons.location_on_rounded,
+                color: AppColors.error,
+                size: 32,
+                shadows: [
+                  Shadow(
+                    color: Colors.black38,
+                    blurRadius: 6,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

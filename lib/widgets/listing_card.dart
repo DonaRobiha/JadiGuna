@@ -63,6 +63,16 @@ class ListingCard extends StatelessWidget {
     return name;
   }
 
+  String _formatShortCondition(String cond) {
+    if (cond.isEmpty) return 'Sangat Baik';
+    if (cond.contains('Layak')) return 'Layak Pakai';
+    if (cond.contains('Mulus')) return 'Mulus';
+    if (cond.contains('Baru')) return 'Baru';
+    if (cond.contains('Sangat Baik')) return 'Sangat Baik';
+    if (cond.contains('Baik')) return 'Baik';
+    return cond;
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasUserCoords = userLatitude != null &&
@@ -114,7 +124,7 @@ class ListingCard extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: AspectRatio(
-                        aspectRatio: 1.15,
+                        aspectRatio: 1.28,
                         child: _buildListingImage(
                           listing.images.isNotEmpty
                               ? listing.images.first
@@ -212,117 +222,126 @@ class ListingCard extends StatelessWidget {
               ),
 
               // Content Details
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Condition Tag
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F2EA),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        listing.condition.isNotEmpty ? listing.condition : 'Sangat Baik',
-                        style: const TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF27553A),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-
-                    // Title
-                    Text(
-                      listing.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-
-                    // Location text
-                    Text(
-                      listing.locationName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-
-                    // Price and Seller Row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Price
-                        Flexible(
-                          child: Text(
-                            _formatCardPrice(listing.price, isFree),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              color: isFree ? AppColors.terracotta : AppColors.textPrimary,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(9, 0, 9, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Condition Tag
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F2EA),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              _formatShortCondition(listing.condition),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF27553A),
+                              ),
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 3),
 
-                        // Seller Info
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 18,
-                              height: 18,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFDECE8),
-                                shape: BoxShape.circle,
+                          // Title
+                          Text(
+                            listing.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              height: 1.15,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+
+                          // Location text
+                          Text(
+                            listing.locationName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Price and Seller Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Price
+                          Flexible(
+                            child: Text(
+                              _formatCardPrice(listing.price, isFree),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: isFree ? AppColors.terracotta : AppColors.textPrimary,
                               ),
-                              child: Center(
-                                child: Text(
-                                  sellerInitial,
-                                  style: const TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.terracotta,
+                            ),
+                          ),
+
+                          // Seller Info
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 18,
+                                height: 18,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFDECE8),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    sellerInitial,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.terracotta,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 55),
-                              child: Text(
-                                _formatShortSeller(listing.sellerName),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
+                              const SizedBox(width: 4),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 55),
+                                child: Text(
+                                  _formatShortSeller(listing.sellerName),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

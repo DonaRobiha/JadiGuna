@@ -199,7 +199,7 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
                   const Text('Zona Waktu Asal:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: _sourceTimeZone,
+                    initialValue: _sourceTimeZone,
                     decoration: const InputDecoration(
                       contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),

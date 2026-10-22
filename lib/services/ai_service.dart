@@ -30,7 +30,7 @@ class AiService {
     final lowerTitle = cleanTitle.toLowerCase();
 
     // 1. Determine suggested category
-    String suggestedCat = category ?? 'Lainnya';
+    String suggestedCat = category ?? (isFree ? 'Gratis' : 'Furnitur');
     if (lowerTitle.contains('meja') ||
         lowerTitle.contains('kursi') ||
         lowerTitle.contains('lemari') ||
@@ -46,34 +46,36 @@ class AiService {
         lowerTitle.contains('mouse') ||
         lowerTitle.contains('keyboard') ||
         lowerTitle.contains('headphone') ||
-        lowerTitle.contains('kabel')) {
+        lowerTitle.contains('kabel') ||
+        lowerTitle.contains('pc') ||
+        lowerTitle.contains('tv')) {
       suggestedCat = 'Elektronik';
     } else if (lowerTitle.contains('buku') ||
         lowerTitle.contains('novel') ||
         lowerTitle.contains('kamus') ||
         lowerTitle.contains('komik') ||
-        lowerTitle.contains('modul')) {
-      suggestedCat = 'Buku & Alat Tulis';
-    } else if (lowerTitle.contains('baju') ||
-        lowerTitle.contains('kaos') ||
-        lowerTitle.contains('jaket') ||
-        lowerTitle.contains('celana') ||
-        lowerTitle.contains('sepatu') ||
-        lowerTitle.contains('tas') ||
-        lowerTitle.contains('kemeja')) {
-      suggestedCat = 'Pakaian & Aksesoris';
-    } else if (lowerTitle.contains('raket') ||
+        lowerTitle.contains('modul') ||
+        lowerTitle.contains('raket') ||
         lowerTitle.contains('bola') ||
         lowerTitle.contains('sepeda') ||
         lowerTitle.contains('matras') ||
-        lowerTitle.contains('dumbbell')) {
-      suggestedCat = 'Alat Olahraga';
+        lowerTitle.contains('gitar') ||
+        lowerTitle.contains('game')) {
+      suggestedCat = 'Buku & Hobi';
     } else if (lowerTitle.contains('piring') ||
         lowerTitle.contains('wajan') ||
         lowerTitle.contains('sprei') ||
         lowerTitle.contains('ember') ||
-        lowerTitle.contains('jemuran')) {
+        lowerTitle.contains('jemuran') ||
+        lowerTitle.contains('kardus') ||
+        lowerTitle.contains('box') ||
+        lowerTitle.contains('sepatu') ||
+        lowerTitle.contains('baju') ||
+        lowerTitle.contains('kaos') ||
+        lowerTitle.contains('jaket')) {
       suggestedCat = 'Perlengkapan Rumah';
+    } else if (isFree) {
+      suggestedCat = 'Gratis';
     }
 
     // 2. Draft description

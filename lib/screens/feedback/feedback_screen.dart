@@ -160,7 +160,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   const Text('Kategori Masukan:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: _selectedCategory,
+                    initialValue: _selectedCategory,
                     decoration: const InputDecoration(
                       contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),

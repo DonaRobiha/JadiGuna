@@ -39,6 +39,7 @@ class CustomButton extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: effectiveBg, width: 1.5),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
               ),
               child: _buildChild(effectiveText),
             )
@@ -49,6 +50,7 @@ class CustomButton extends StatelessWidget {
                 foregroundColor: effectiveText,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                 elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
               ),
               child: _buildChild(effectiveText),
             ),
@@ -70,15 +72,20 @@ class CustomButton extends StatelessWidget {
     if (icon != null) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 18, color: textColor),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: textColor,
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
             ),
           ),
         ],
@@ -87,6 +94,9 @@ class CustomButton extends StatelessWidget {
 
     return Text(
       text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w600,

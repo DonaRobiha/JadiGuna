@@ -20,7 +20,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final TextEditingController _notesController = TextEditingController(text: 'Bahan kayu jati londo, ada laci samping, kokoh');
   final TextEditingController _resultController = TextEditingController();
 
-  String _selectedCondition = 'Baik (Layak Pakai)';
+  String _selectedCondition = 'Layak Pakai';
   bool _isFree = false;
   bool _isLoading = false;
   AiGenerationResult? _lastResult;
@@ -43,28 +43,46 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     }
 
     setState(() => _isLoading = true);
-    final res = await _aiService.generateAdDraft(
-      title: title,
-      rawDetails: _notesController.text.trim(),
-      condition: _selectedCondition,
-      isFree: _isFree,
-    );
+    try {
+      final res = await _aiService.generateAdDraft(
+        title: title,
+        rawDetails: _notesController.text.trim(),
+        condition: _selectedCondition,
+        isFree: _isFree,
+      );
 
-    setState(() {
-      _lastResult = res;
-      _resultController.text = res.description;
-      _isLoading = false;
-    });
+      if (!mounted) return;
+      setState(() {
+        _lastResult = res;
+        _resultController.text = res.description;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan AI: $e'), backgroundColor: AppColors.error),
+      );
+    }
   }
 
   Future<void> _polishCurrentText() async {
     if (_resultController.text.trim().isEmpty) return;
     setState(() => _isLoading = true);
-    final polished = await _aiService.polishText(_resultController.text);
-    setState(() {
-      _resultController.text = polished;
-      _isLoading = false;
-    });
+    try {
+      final polished = await _aiService.polishText(_resultController.text);
+      if (!mounted) return;
+      setState(() {
+        _resultController.text = polished;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memoles teks: $e'), backgroundColor: AppColors.error),
+      );
+    }
   }
 
   @override
@@ -149,12 +167,14 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                             const Text('Kondisi:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                             const SizedBox(height: 4),
                             DropdownButtonFormField<String>(
-                              value: _selectedCondition,
+                              initialValue: _selectedCondition,
                               isExpanded: true,
                               items: AppConstants.conditions
                                   .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 11))))
                                   .toList(),
-                              onChanged: (v) => setState(() => _selectedCondition = v!),
+                              onChanged: (v) {
+                                if (v != null) setState(() => _selectedCondition = v);
+                              },
                             ),
                           ],
                         ),
@@ -285,7 +305,15 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                             onPressed: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const AddEditListingScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => AddEditListingScreen(
+                                    initialTitle: _titleController.text.trim(),
+                                    initialDescription: _resultController.text.trim(),
+                                    initialCategory: _lastResult?.suggestedCategory,
+                                    initialCondition: _selectedCondition,
+                                    initialIsFree: _isFree,
+                                  ),
+                                ),
                               );
                             },
                             icon: const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),

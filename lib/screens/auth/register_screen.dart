@@ -188,6 +188,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   hint: 'Minimal 6 karakter',
                   prefixIcon: Icons.lock_outline,
                   obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
+                  ),
                   validator: (val) {
                     if (val == null || val.isEmpty) return 'Password wajib diisi';
                     if (val.length < 6) return 'Password minimal 6 karakter';

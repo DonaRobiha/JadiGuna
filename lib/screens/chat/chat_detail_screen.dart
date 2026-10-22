@@ -80,7 +80,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final currentUserId = authProvider.user?.id ?? 'user-current-1';
     final rawMessages = chatProvider.currentMessages;
 
-    final sellerName = widget.conversation.sellerName.isNotEmpty ? widget.conversation.sellerName : 'Budi Santoso';
+    final sellerName = widget.conversation.sellerName.isNotEmpty ? widget.conversation.sellerName : 'Penjual';
     const sellerAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
 
     final effectiveMessages = rawMessages.isNotEmpty
@@ -138,37 +138,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
                   onPressed: () => Navigator.pop(context),
                 ),
-
-                // Brand Circle Logo
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 17,
-                      height: 17,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFC29B72), width: 1.8),
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFC29B72),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
 
                 // Title "Ruang Obrolan"
                 const Text(
@@ -187,16 +157,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary, size: 22),
                   onPressed: () {},
                 ),
-
-                // User Profile Picture
-                const CircleAvatar(
-                  radius: 17,
-                  backgroundColor: AppColors.primaryLight,
-                  backgroundImage: NetworkImage(
-                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-                  ),
-                ),
-                const SizedBox(width: 6),
               ],
             ),
           ),

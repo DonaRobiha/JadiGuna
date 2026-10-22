@@ -228,26 +228,29 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
             const Text('Daftar Nilai Tukar Referensi (per 1 USD)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 10),
             if (_rateData != null)
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
+              Material(
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
+                  side: const BorderSide(color: AppColors.border),
                 ),
                 child: Column(
                   children: CurrencyService.supportedCurrencies.map((code) {
                     final rate = _rateData!.rates[code] ?? 1.0;
-                    return ListTile(
-                      dense: true,
-                      leading: CircleAvatar(
-                        radius: 14,
-                        backgroundColor: AppColors.primarySurface,
-                        child: Text(code.substring(0, 2), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                      ),
-                      title: Text(code, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      trailing: Text(
-                        code == 'IDR' || code == 'JPY' ? rate.toStringAsFixed(0) : rate.toStringAsFixed(2),
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    return Material(
+                      color: Colors.transparent,
+                      child: ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: AppColors.primarySurface,
+                          child: Text(code.substring(0, 2), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                        ),
+                        title: Text(code, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                        trailing: Text(
+                          code == 'IDR' || code == 'JPY' ? rate.toStringAsFixed(0) : rate.toStringAsFixed(2),
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
                       ),
                     );
                   }).toList(),
@@ -267,7 +270,7 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
         Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           isExpanded: true,
           decoration: const InputDecoration(
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),

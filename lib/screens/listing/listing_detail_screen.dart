@@ -67,35 +67,44 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.check_circle_outline, color: AppColors.statusAvailable),
-                title: const Text('Tersedia', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Barang masih aktif dan dapat ditawar'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _changeStatus(listing, 'Tersedia', listingProvider, currentUserName);
-                },
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.check_circle_outline, color: AppColors.statusAvailable),
+                  title: const Text('Tersedia', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Barang masih aktif dan dapat ditawar'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _changeStatus(listing, 'Tersedia', listingProvider, currentUserName);
+                  },
+                ),
               ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.handshake_outlined, color: AppColors.statusNegotiating),
-                title: const Text('Dalam Kesepakatan', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Sedang janjian COD atau negosiasi'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _changeStatus(listing, 'Dalam Kesepakatan', listingProvider, currentUserName);
-                },
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.handshake_outlined, color: AppColors.statusNegotiating),
+                  title: const Text('Dalam Kesepakatan', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Sedang janjian COD atau negosiasi'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _changeStatus(listing, 'Dalam Kesepakatan', listingProvider, currentUserName);
+                  },
+                ),
               ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.task_alt, color: AppColors.statusCompleted),
-                title: const Text('Selesai / Terjual', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Barang sudah berpindah tangan atau diserahkan'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _changeStatus(listing, 'Selesai', listingProvider, currentUserName);
-                },
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.task_alt, color: AppColors.statusCompleted),
+                  title: const Text('Selesai / Terjual', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Barang sudah berpindah tangan atau diserahkan'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _changeStatus(listing, 'Selesai', listingProvider, currentUserName);
+                  },
+                ),
               ),
             ],
           ),
@@ -157,7 +166,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   const Text('Pilih alasan pelaporan:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: selectedReason,
+                    initialValue: selectedReason,
                     isExpanded: true,
                     items: [
                       'Konten Menyesatkan/Penipuan',
@@ -225,7 +234,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         condition: 'Sangat Baik',
         locationName: 'Jl. Kaliurang Km 5, Sleman',
         images: ['https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800'],
-        sellerName: 'Budi Santoso',
+        sellerName: 'Penjual jadiGuna',
         createdAt: DateTime.now(),
       ),
     );
@@ -257,37 +266,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
                   onPressed: () => Navigator.pop(context),
                 ),
-
-                // Circle Brand Logo
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFC29B72), width: 1.8),
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFC29B72),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 4),
 
                 // Title "Detail Barang"
                 const Text(
@@ -313,15 +292,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                       ),
                     );
                   },
-                ),
-
-                // User Avatar
-                const CircleAvatar(
-                  radius: 17,
-                  backgroundColor: AppColors.primaryLight,
-                  backgroundImage: NetworkImage(
-                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-                  ),
                 ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary, size: 20),
@@ -1196,56 +1166,19 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     )
                   : Row(
                       children: [
-                        // Nego Button
-                        InkWell(
-                          onTap: () async {
-                            final navigator = Navigator.of(context);
-                            final conv = await chatProvider.openConversationForListing(
-                              listing: listing,
-                              buyerId: currentUserId,
-                              buyerName: currentUserName,
-                            );
-                            if (!mounted) return;
-                            navigator.push(
-                              MaterialPageRoute(
-                                builder: (_) => ChatDetailScreen(conversation: conv),
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(24),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1EFEA),
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: Row(
-                              children: const [
-                                Icon(Icons.chat_bubble_outline_rounded, size: 16, color: AppColors.textPrimary),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Nego',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-
-                        // Ambil Barang Button
                         Expanded(
-                          child: ElevatedButton(
+                          child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF27382B),
+                              backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                               elevation: 0,
+                            ),
+                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                            label: const Text(
+                              'Chat Penjual',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                             ),
                             onPressed: () async {
                               final navigator = Navigator.of(context);
@@ -1261,17 +1194,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                 ),
                               );
                             },
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Ambil Barang',
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                                ),
-                                SizedBox(width: 6),
-                                Icon(Icons.arrow_forward_rounded, size: 16),
-                              ],
-                            ),
                           ),
                         ),
                       ],

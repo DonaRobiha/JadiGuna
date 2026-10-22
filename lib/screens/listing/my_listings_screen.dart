@@ -107,7 +107,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> with SingleTickerPr
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.79,
+        childAspectRatio: 0.58,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),

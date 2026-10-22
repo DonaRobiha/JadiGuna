@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
-import '../../widgets/category_chip.dart';
 import '../../widgets/listing_card.dart';
 import '../../widgets/empty_state.dart';
 import '../search/search_screen.dart';
@@ -52,21 +51,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.my_location_rounded, color: AppColors.primary),
-                  title: const Text('Gunakan GPS Perangkat Terkini', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Mendeteksi koordinat otomatis lewat satelit GPS'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const GpsFullMapScreen(
-                          mode: GpsMapMode.userGps,
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: const Icon(Icons.my_location_rounded, color: AppColors.primary),
+                    title: const Text('Gunakan GPS Perangkat Terkini', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text('Mendeteksi koordinat otomatis lewat satelit GPS'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const GpsFullMapScreen(
+                            mode: GpsMapMode.userGps,
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
                 const Divider(),
                 Expanded(
@@ -74,17 +76,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemCount: cities.length,
                     itemBuilder: (context, idx) {
                       final c = cities[idx];
-                      return ListTile(
-                        leading: const Icon(Icons.location_city_rounded, color: AppColors.textSecondary),
-                        title: Text(c['name'] as String),
-                        onTap: () {
-                          provider.setUserCity(
-                            c['name'] as String,
-                            c['lat'] as double,
-                            c['lng'] as double,
-                          );
-                          Navigator.pop(ctx);
-                        },
+                      return Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          leading: const Icon(Icons.location_city_rounded, color: AppColors.textSecondary),
+                          title: Text(c['name'] as String),
+                          onTap: () {
+                            provider.setUserCity(
+                              c['name'] as String,
+                              c['lat'] as double,
+                              c['lng'] as double,
+                            );
+                            Navigator.pop(ctx);
+                          },
+                        ),
                       );
                     },
                   ),
@@ -103,7 +108,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUserId = authProvider.user?.id ?? 'user-current-1';
     final userName = authProvider.user?.name ?? 'Dimas';
-    final firstName = userName.split(' ').first;
 
     final userLat = listingProvider.userLocation['latitude'];
     final userLng = listingProvider.userLocation['longitude'];
@@ -111,52 +115,57 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
+        preferredSize: const Size.fromHeight(62),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               children: [
-                // Circular Brand Logo
+                // Logo matching login screen
                 Container(
-                  width: 38,
-                  height: 38,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySurface,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Center(
-                    child: Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFC29B72), width: 2.2),
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFC29B72),
-                            shape: BoxShape.circle,
-                          ),
+                  child: Image.asset(
+                    'assets/logo_jadiguna.png',
+                    width: 30,
+                    height: 30,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Halo, $userName 👋',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.3,
                         ),
                       ),
-                    ),
+                      const Text(
+                        'Beri Guna Baru, Temukan Lebih Dekat',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'jadiGuna',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                const Spacer(),
 
                 // Accelerometer / Shake shortcut
                 IconButton(
@@ -185,15 +194,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-
-                // User Profile Picture
-                CircleAvatar(
-                  radius: 17,
-                  backgroundColor: AppColors.primaryLight,
-                  backgroundImage: const NetworkImage(
-                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-                  ),
-                ),
               ],
             ),
           ),
@@ -209,74 +209,102 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
 
-              // Greeting & Location Row
+              // Location Selector (Full width, not truncated or cut off)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Halo, Dimas! 👋
-                    Text(
-                      'Halo, $firstName! 👋',
-                      style: const TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-
-                    // Location Pill on the right
-                    InkWell(
-                      onTap: () => _showCityPicker(context, listingProvider),
-                      borderRadius: BorderRadius.circular(18),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppColors.border, width: 1),
+                child: InkWell(
+                  onTap: () => _showCityPicker(context, listingProvider),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              color: AppColors.terracotta,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 130),
-                              child: Text(
-                                listingProvider.userCityName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11.5,
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.terracotta.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.location_on_rounded,
+                            color: AppColors.terracotta,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Lokasi Sekitar Anda',
+                                style: TextStyle(
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                listingProvider.userCityName,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
                                   color: AppColors.textPrimary,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 2),
-                            const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 16,
-                              color: AppColors.textSecondary,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySurface,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Ubah',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              SizedBox(width: 2),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 16,
+                                color: AppColors.primary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
               // Search Bar Trigger
               Padding(
@@ -327,36 +355,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SizedBox(height: 16),
-
-              // Categories Grid (Exact 6 choices from Image 3: 2 cols x 3 rows)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: listingProvider.categories.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 3.5,
-                  ),
-                  itemBuilder: (context, index) {
-                    final cat = listingProvider.categories[index];
-                    final isSelected = listingProvider.selectedCategorySlug == cat.slug;
-                    return CategoryChip(
-                      category: cat,
-                      isSelected: isSelected,
-                      isGrid: true,
-                      onTap: () {
-                        listingProvider.setCategory(cat.slug);
-                      },
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 18),
 
               // Promo Banner ("JadiGuna, yang tak berguna jadi Berguna")
               Padding(
@@ -600,7 +598,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      childAspectRatio: 0.69,
+                      childAspectRatio: 0.58,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                     ),

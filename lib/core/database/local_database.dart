@@ -67,6 +67,26 @@ class LocalDatabase {
             'favorites',
             where: "user_id = 'current-user-1'",
           );
+
+          // Update/insert sample listings with diverse seller names
+          for (var item in SampleData.sampleListings) {
+            final exists = await db.query('listings', where: 'id = ?', whereArgs: [item.id]);
+            if (exists.isNotEmpty) {
+              await db.update(
+                'listings',
+                {
+                  'seller_name': item.sellerName,
+                  'seller_avatar': item.sellerAvatar,
+                  'seller_phone': item.sellerPhone,
+                  'images_csv': item.images.join(','),
+                },
+                where: 'id = ?',
+                whereArgs: [item.id],
+              );
+            } else {
+              await db.insert('listings', item.toMap());
+            }
+          }
         } catch (e) {
           debugPrint('Gagal membersihkan data contoh: $e');
         }
