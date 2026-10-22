@@ -8,19 +8,25 @@ import '../../widgets/listing_card.dart';
 import '../../widgets/empty_state.dart';
 import '../search/search_screen.dart';
 import '../listing/listing_detail_screen.dart';
-import '../listing/add_edit_listing_screen.dart';
 import '../sensors/sensors_screen.dart';
 import '../maps/gps_full_map_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _selectedSortFilter = 'Terdekat';
 
   void _showCityPicker(BuildContext context, ListingProvider provider) {
     final cities = [
-      {'name': 'Sleman, D.I. Yogyakarta', 'lat': -7.760124, 'lng': 110.375492},
+      {'name': 'Sleman, DIY (1.5 km)', 'lat': -7.760124, 'lng': 110.375492},
+      {'name': 'Depok, Sleman (Area Kampus)', 'lat': -7.771245, 'lng': 110.388712},
       {'name': 'Kota Yogyakarta (Malioboro)', 'lat': -7.797068, 'lng': 110.370529},
       {'name': 'Bantul, D.I. Yogyakarta', 'lat': -7.889123, 'lng': 110.334123},
-      {'name': 'Depok, Sleman (Area Kampus)', 'lat': -7.771245, 'lng': 110.388712},
       {'name': 'Jakarta Selatan', 'lat': -6.261493, 'lng': 106.810600},
       {'name': 'Bandung (Coblong/Dago)', 'lat': -6.891480, 'lng': 107.610659},
       {'name': 'Surabaya (Gubeng)', 'lat': -7.275614, 'lng': 112.758385},
@@ -96,69 +102,102 @@ class HomeScreen extends StatelessWidget {
     final listingProvider = Provider.of<ListingProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUserId = authProvider.user?.id ?? 'user-current-1';
+    final userName = authProvider.user?.name ?? 'Dimas';
+    final firstName = userName.split(' ').first;
 
     final userLat = listingProvider.userLocation['latitude'];
     final userLng = listingProvider.userLocation['longitude'];
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: InkWell(
-          onTap: () => _showCityPicker(context, listingProvider),
-          borderRadius: BorderRadius.circular(10),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.location_on, color: AppColors.primary, size: 18),
-                const SizedBox(width: 4),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 190),
-                  child: Text(
-                    listingProvider.userCityName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                // Circular Brand Logo
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFC29B72), width: 2.2),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFC29B72),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: 8),
+                const Text(
+                  'jadiGuna',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const Spacer(),
+
+                // Accelerometer / Shake shortcut
+                IconButton(
+                  tooltip: 'Sensor Interaktif',
+                  icon: const Icon(Icons.sensors_rounded, color: AppColors.textSecondary, size: 22),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SensorsScreen()),
+                    );
+                  },
+                ),
+
+                // Notification Bell
+                IconButton(
+                  tooltip: 'Notifikasi',
+                  icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 24),
+                  onPressed: () {
+                    listingProvider.randomizeRecommendations();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Notifikasi terbaru telah diperbarui.'),
+                        duration: Duration(seconds: 1),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+
+                // User Profile Picture
+                CircleAvatar(
+                  radius: 17,
+                  backgroundColor: AppColors.primaryLight,
+                  backgroundImage: const NetworkImage(
+                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+                  ),
+                ),
               ],
             ),
           ),
         ),
-        actions: [
-          // Shake sensor shortcut button
-          IconButton(
-            tooltip: 'Sensor Goyang (Accelerometer)',
-            icon: const Icon(Icons.vibration_rounded, color: AppColors.primary),
-            onPressed: () {
-              listingProvider.randomizeRecommendations();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Simulasi Goyang HP: Rekomendasi barang diacak!'),
-                  duration: Duration(seconds: 1),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: 'Sensor Interaktif',
-            icon: const Icon(Icons.sensors_rounded, color: AppColors.textSecondary),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SensorsScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -170,9 +209,78 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 6),
+
+              // Greeting & Location Row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Halo, Dimas! 👋
+                    Text(
+                      'Halo, $firstName! 👋',
+                      style: const TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+
+                    // Location Pill on the right
+                    InkWell(
+                      onTap: () => _showCityPicker(context, listingProvider),
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: AppColors.border, width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              color: AppColors.terracotta,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 130),
+                              child: Text(
+                                listingProvider.userCityName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 16,
+                              color: AppColors.textSecondary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
               // Search Bar Trigger
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: InkWell(
                   onTap: () {
                     Navigator.push(
@@ -180,16 +288,16 @@ class HomeScreen extends StatelessWidget {
                       MaterialPageRoute(builder: (_) => const SearchScreen()),
                     );
                   },
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(28),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.border, width: 1.2),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: AppColors.border, width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -197,162 +305,30 @@ class HomeScreen extends StatelessWidget {
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 20),
-                        SizedBox(width: 12),
+                        Icon(Icons.search_rounded, color: AppColors.textTertiary, size: 20),
+                        SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Cari meja, monitor, baju, buku gratis...',
+                            'Cari meja belajar, buku, sofa...',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: AppColors.textTertiary,
                               fontSize: 13,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
-                        Icon(Icons.tune_rounded, color: AppColors.primary, size: 20),
+                        Icon(Icons.mic_none_rounded, color: AppColors.textTertiary, size: 20),
                       ],
                     ),
                   ),
                 ),
               ),
 
-              // Eco Hero Banner
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primaryDark, AppColors.primary],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.22),
-                        blurRadius: 14,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.eco_rounded, color: Colors.white, size: 14),
-                                SizedBox(width: 5),
-                                Text(
-                                  'Gaya Hidup Berkelanjutan',
-                                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Beri Guna Baru, Temukan Lebih Dekat',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Temukan barang layak pakai dari tetangga kos atau bagikan barang tak terpakai secara gratis.',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          height: 1.35,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: AppColors.primary,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                            ),
-                            onPressed: () {
-                              listingProvider.setOnlyFree(true);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const SearchScreen()),
-                              );
-                            },
-                            icon: const Icon(Icons.volunteer_activism, size: 14, color: AppColors.freeBadge),
-                            label: const Text('Jelajahi Barang Gratis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                          ),
-                          const SizedBox(width: 8),
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                            ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const AddEditListingScreen()),
-                              );
-                            },
-                            child: const Text('Pasang Iklan +'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              const SizedBox(height: 16),
 
-              // Categories Grid - 2 columns and 4 rows (No horizontal scroll, neatly aligned)
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Kategori Pilihan',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    if (listingProvider.selectedCategorySlug != 'semua')
-                      TextButton(
-                        onPressed: () => listingProvider.setCategory('semua'),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(40, 24),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text('Reset', style: TextStyle(fontSize: 12)),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
+              // Categories Grid (Exact 6 choices from Image 3: 2 cols x 3 rows)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: GridView.builder(
@@ -363,7 +339,7 @@ class HomeScreen extends StatelessWidget {
                     crossAxisCount: 2,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 3.2,
+                    childAspectRatio: 3.5,
                   ),
                   itemBuilder: (context, index) {
                     final cat = listingProvider.categories[index];
@@ -380,102 +356,231 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
 
-              // Section 1: Barang Gratis (Free Items Section)
-              if (listingProvider.freeListings.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              const SizedBox(height: 18),
+
+              // Promo Banner ("JadiGuna, yang tak berguna jadi Berguna")
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.volunteer_activism_rounded, color: AppColors.freeBadge, size: 20),
-                          SizedBox(width: 6),
-                          Text(
-                            'Barang Gratis di Sekitar',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+                      // Left content
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 100% GRATIS Pill
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                              decoration: BoxDecoration(
+                                color: AppColors.terracotta,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 12),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    '100% GRATIS',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+
+                            // Title
+                            const Text(
+                              'JadiGuna, yang tak berguna\njadi Berguna',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                height: 1.25,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+
+                            // Subtitle
+                            Text(
+                              'Bebaskan rumah dari barang tak\nterpakai & bantu sesama',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.75),
+                                fontSize: 11,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Terracotta Button
+                            InkWell(
+                              onTap: () {
+                                listingProvider.setOnlyFree(true);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const SearchScreen()),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7.5),
+                                decoration: BoxDecoration(
+                                  color: AppColors.terracotta,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Lihat Barang Gratis',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 13),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          listingProvider.setOnlyFree(true);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const SearchScreen()),
-                          );
-                        },
-                        child: const Text('Lihat Semua', style: TextStyle(fontSize: 12)),
+
+                      const SizedBox(width: 10),
+
+                      // Right Image
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SizedBox(
+                          width: 110,
+                          height: 110,
+                          child: Image.network(
+                            'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400',
+                            fit: BoxFit.cover,
+                            errorBuilder: (ctx, err, _) => Container(color: AppColors.primaryLight),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                SizedBox(
-                  height: 218,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: listingProvider.freeListings.length,
-                    itemBuilder: (context, index) {
-                      final item = listingProvider.freeListings[index];
-                      return Container(
-                        width: 175,
-                        margin: const EdgeInsets.only(right: 12),
-                        child: ListingCard(
-                          listing: item,
-                          userLatitude: userLat,
-                          userLongitude: userLng,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ListingDetailScreen(listingId: item.id),
-                              ),
-                            );
-                          },
-                          onFavoriteToggle: () {
-                            listingProvider.toggleFavorite(currentUserId, item);
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+              ),
 
-              // Section 2: All Items / Latest
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
+
+              // Section Header: "Barang Terdekat Sekitar Anda"
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      listingProvider.selectedCategorySlug == 'semua'
-                          ? 'Barang Terbaru di Sekitar Anda'
-                          : 'Kategori: ${listingProvider.selectedCategorySlug.toUpperCase()}',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Barang Terdekat Sekitar Anda',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Bisa diambil langsung atau COD santai',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SearchScreen()),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Semua',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.terracotta,
+                              ),
+                            ),
+                            Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.terracotta),
+                          ],
+                        ),
                       ),
                     ),
-                    if (listingProvider.selectedCategorySlug != 'semua')
-                      TextButton(
-                        onPressed: () => listingProvider.setCategory('semua'),
-                        child: const Text('Reset', style: TextStyle(fontSize: 12)),
-                      ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
 
-              // Listings Grid (childAspectRatio 0.79 to eliminate empty bottom space)
+              const SizedBox(height: 12),
+
+              // Filter Chips: Terdekat | Terbaru | Harga Terendah | Terverifikasi
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    _buildSortPill('Terdekat', isSelected: _selectedSortFilter == 'Terdekat', onTap: () {
+                      setState(() => _selectedSortFilter = 'Terdekat');
+                      listingProvider.setSortBy('terdekat');
+                    }),
+                    const SizedBox(width: 8),
+                    _buildSortPill('Terbaru', isSelected: _selectedSortFilter == 'Terbaru', onTap: () {
+                      setState(() => _selectedSortFilter = 'Terbaru');
+                      listingProvider.setSortBy('terbaru');
+                    }),
+                    const SizedBox(width: 8),
+                    _buildSortPill('Harga Terendah', isSelected: _selectedSortFilter == 'Harga Terendah', onTap: () {
+                      setState(() => _selectedSortFilter = 'Harga Terendah');
+                      listingProvider.setSortBy('termurah');
+                    }),
+                    const SizedBox(width: 8),
+                    _buildSortPill(
+                      'Terverifikasi',
+                      isSelected: _selectedSortFilter == 'Terverifikasi',
+                      icon: Icons.check_circle_outline_rounded,
+                      onTap: () {
+                        setState(() => _selectedSortFilter = 'Terverifikasi');
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Product Grid
               if (listingProvider.isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 40),
@@ -485,7 +590,7 @@ class HomeScreen extends StatelessWidget {
                 const EmptyState(
                   icon: Icons.search_off_rounded,
                   title: 'Belum Ada Barang di Kategori Ini',
-                  message: 'Coba pilih kategori lain atau jadilah yang pertama memasang iklan barang di sekitar Anda!',
+                  message: 'Coba pilih kategori lain atau bagikan barang tak terpakai Anda!',
                 )
               else
                 Padding(
@@ -495,7 +600,7 @@ class HomeScreen extends StatelessWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      childAspectRatio: 0.79,
+                      childAspectRatio: 0.69,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                     ),
@@ -521,7 +626,43 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
                 ),
+
               const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortPill(String title, {required bool isSelected, IconData? icon, required VoidCallback onTap}) {
+    return Material(
+      color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 14,
+                  color: isSelected ? Colors.white : AppColors.textPrimary,
+                ),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: isSelected ? Colors.white : AppColors.textPrimary,
+                ),
+              ),
             ],
           ),
         ),

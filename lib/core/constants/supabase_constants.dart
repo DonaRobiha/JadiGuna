@@ -1,8 +1,8 @@
 class SupabaseConstants {
   // Masukkan kredensial Supabase proyek Anda di sini jika ingin menggunakan Supabase Cloud.
   // Jika dibiarkan kosong, aplikasi otomatis berjalan dalam mode Offline/SQLite First!
-  static const String supabaseUrl = ''; // Contoh: 'https://xyzcompany.supabase.co'
-  static const String supabaseAnonKey = ''; // Contoh: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  static const String supabaseUrl = 'https://cfmcjkvijfexcvxkcexc.supabase.co';
+  static const String supabaseAnonKey = 'sb_publishable_a2kKH-SPiQV6XKOh6UxF3g_2WcXIgR1';
 
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty &&

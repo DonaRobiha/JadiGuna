@@ -3,26 +3,22 @@ class AppConstants {
   static const String appTagline = 'Beri Guna Baru, Temukan Lebih Dekat';
   static const String appVersion = '1.0.0';
 
-  // Item Categories
+  // Item Categories (strictly matching reference UI)
   static const List<String> categories = [
     'Semua',
-    'Furnitur',
     'Elektronik',
-    'Buku & Alat Tulis',
-    'Pakaian & Aksesoris',
     'Perlengkapan Rumah',
-    'Alat Olahraga',
-    'Hobi & Mainan',
-    'Lainnya',
+    'Furnitur',
+    'Buku & Hobi',
+    'Gratis',
   ];
 
-  // Item Conditions
+  // Item Conditions (matching reference UI)
   static const List<String> conditions = [
-    'Baru (Belum Pernah Pakai)',
-    'Sangat Baik (Mulus)',
-    'Baik (Layak Pakai)',
-    'Cukup (Ada Tanda Pemakaian)',
-    'Perlu Perbaikan Sedikit',
+    'Baru / Belum Dipakai',
+    'Sangat Baik',
+    'Layak Pakai',
+    'Perlu Servis / Modif',
   ];
 
   // Item Status

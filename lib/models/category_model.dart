@@ -36,22 +36,20 @@ class CategoryModel {
 
   static IconData _getIconForSlug(String slug) {
     switch (slug) {
-      case 'furnitur':
-        return Icons.chair_rounded;
       case 'elektronik':
         return Icons.devices_rounded;
-      case 'buku':
-        return Icons.menu_book_rounded;
-      case 'pakaian':
-        return Icons.checkroom_rounded;
       case 'perlengkapan-rumah':
-        return Icons.home_rounded;
-      case 'alat-olahraga':
-        return Icons.fitness_center_rounded;
-      case 'hobi-mainan':
-        return Icons.sports_esports_rounded;
+        return Icons.home_outlined;
+      case 'furnitur':
+        return Icons.chair_outlined;
+      case 'buku-hobi':
+      case 'buku':
+      case 'hobi':
+        return Icons.menu_book_outlined;
+      case 'gratis':
+        return Icons.volunteer_activism_outlined;
       default:
-        return Icons.category_rounded;
+        return Icons.grid_view_rounded;
     }
   }
 
@@ -63,46 +61,34 @@ class CategoryModel {
       icon: Icons.grid_view_rounded,
     ),
     CategoryModel(
-      id: 'cat_1',
-      name: 'Furnitur',
-      slug: 'furnitur',
-      icon: Icons.chair_rounded,
-    ),
-    CategoryModel(
-      id: 'cat_2',
+      id: 'cat_elektronik',
       name: 'Elektronik',
       slug: 'elektronik',
       icon: Icons.devices_rounded,
     ),
     CategoryModel(
-      id: 'cat_3',
-      name: 'Buku',
-      slug: 'buku',
-      icon: Icons.menu_book_rounded,
-    ),
-    CategoryModel(
-      id: 'cat_4',
-      name: 'Pakaian',
-      slug: 'pakaian',
-      icon: Icons.checkroom_rounded,
-    ),
-    CategoryModel(
-      id: 'cat_5',
+      id: 'cat_perlengkapan_rumah',
       name: 'Perlengkapan Rumah',
       slug: 'perlengkapan-rumah',
-      icon: Icons.home_rounded,
+      icon: Icons.home_outlined,
     ),
     CategoryModel(
-      id: 'cat_6',
-      name: 'Alat Olahraga',
-      slug: 'alat-olahraga',
-      icon: Icons.fitness_center_rounded,
+      id: 'cat_furnitur',
+      name: 'Furnitur',
+      slug: 'furnitur',
+      icon: Icons.chair_outlined,
     ),
     CategoryModel(
-      id: 'cat_7',
-      name: 'Hobi & Mainan',
-      slug: 'hobi-mainan',
-      icon: Icons.sports_esports_rounded,
+      id: 'cat_buku_hobi',
+      name: 'Buku & Hobi',
+      slug: 'buku-hobi',
+      icon: Icons.menu_book_outlined,
+    ),
+    CategoryModel(
+      id: 'cat_gratis',
+      name: 'Gratis',
+      slug: 'gratis',
+      icon: Icons.volunteer_activism_outlined,
     ),
   ];
 }

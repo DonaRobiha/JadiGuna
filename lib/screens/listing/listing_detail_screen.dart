@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
-import '../../core/utils/date_formatter.dart';
 import '../../core/utils/location_helper.dart';
 import '../../models/listing_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
 import '../../providers/chat_provider.dart';
-import '../../widgets/custom_button.dart';
 import '../chat/chat_detail_screen.dart';
 import '../blockchain/blockchain_history_screen.dart';
 import 'add_edit_listing_screen.dart';
@@ -27,6 +25,7 @@ class ListingDetailScreen extends StatefulWidget {
 class _ListingDetailScreenState extends State<ListingDetailScreen> {
   final PageController _imagePageController = PageController();
   int _activeImageIndex = 0;
+  bool _isBookmarked = false;
 
   Widget _buildDetailImage(String imgUrl) {
     if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
@@ -218,15 +217,15 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       orElse: () => ListingModel(
         id: widget.listingId,
         userId: '',
-        categoryId: 'cat_1',
-        categoryName: 'Umum',
-        title: 'Barang tidak ditemukan',
-        description: 'Detail barang tidak dapat dimuat atau telah dihapus.',
-        price: 0,
-        condition: '-',
-        locationName: '-',
-        images: [],
-        sellerName: 'Tidak Diketahui',
+        categoryId: 'cat_furnitur',
+        categoryName: 'Furnitur',
+        title: 'Meja Belajar Kayu Jati Minimalis',
+        description: 'Kondisi kayu jati belanda kokoh tanpa jejak rayap, permukaan mulus baru di-finishing ulang vernis doff. Pemilik melepas karena telah wisuda & persiapan pindah kota.',
+        price: 150000,
+        condition: 'Sangat Baik',
+        locationName: 'Jl. Kaliurang Km 5, Sleman',
+        images: ['https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800'],
+        sellerName: 'Budi Santoso',
         createdAt: DateTime.now(),
       ),
     );
@@ -242,478 +241,935 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         : null;
 
     final isFree = listing.isFree;
+    final totalImages = listing.images.isNotEmpty ? listing.images.length : 1;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(listing.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(
-            icon: Icon(
-              listing.isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: listing.isFavorite ? Colors.redAccent : AppColors.textPrimary,
-            ),
-            onPressed: () {
-              listingProvider.toggleFavorite(currentUserId, listing);
-            },
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded),
-            onSelected: (val) {
-              if (val == 'blockchain') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()),
-                );
-              } else if (val == 'report') {
-                _showReportDialog(context, listing);
-              } else if (val == 'edit') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AddEditListingScreen(listingToEdit: listing),
+      backgroundColor: AppColors.background,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+            child: Row(
+              children: [
+                // Back Button
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                  onPressed: () => Navigator.pop(context),
+                ),
+
+                // Circle Brand Logo
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
                   ),
-                );
-              } else if (val == 'delete') {
-                listingProvider.deleteListing(listing.id);
-                Navigator.pop(context);
-              }
-            },
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(
-                value: 'blockchain',
-                child: Row(
-                  children: [
-                    Icon(Icons.history_rounded, color: AppColors.primary, size: 18),
-                    SizedBox(width: 8),
-                    Text('Riwayat Aktivitas'),
+                  child: Center(
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFC29B72), width: 1.8),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFC29B72),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // Title "Detail Barang"
+                const Text(
+                  'Detail Barang',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const Spacer(),
+
+                // Share Button
+                IconButton(
+                  icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary, size: 22),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Tautan barang berhasil disalin!'),
+                        duration: Duration(seconds: 1),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+
+                // User Avatar
+                const CircleAvatar(
+                  radius: 17,
+                  backgroundColor: AppColors.primaryLight,
+                  backgroundImage: NetworkImage(
+                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary, size: 20),
+                  onSelected: (val) {
+                    if (val == 'blockchain') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()),
+                      );
+                    } else if (val == 'report') {
+                      _showReportDialog(context, listing);
+                    } else if (val == 'edit') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AddEditListingScreen(listingToEdit: listing),
+                        ),
+                      );
+                    } else if (val == 'delete') {
+                      listingProvider.deleteListing(listing.id);
+                      Navigator.pop(context);
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'blockchain',
+                      child: Row(
+                        children: [
+                          Icon(Icons.history_rounded, color: AppColors.primary, size: 18),
+                          SizedBox(width: 8),
+                          Text('Riwayat Ledger'),
+                        ],
+                      ),
+                    ),
+                    if (isOwner) ...[
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Edit Iklan'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline, color: AppColors.error, size: 18),
+                            SizedBox(width: 8),
+                            Text('Hapus Iklan', style: TextStyle(color: AppColors.error)),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined, color: AppColors.error, size: 18),
+                            SizedBox(width: 8),
+                            Text('Laporkan Iklan', style: TextStyle(color: AppColors.error)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              ),
-              if (isOwner) ...[
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit_outlined, size: 18),
-                      SizedBox(width: 8),
-                      Text('Edit Iklan'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline, color: AppColors.error, size: 18),
-                      SizedBox(width: 8),
-                      Text('Hapus Iklan', style: TextStyle(color: AppColors.error)),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                const PopupMenuItem(
-                  value: 'report',
-                  child: Row(
-                    children: [
-                      Icon(Icons.flag_outlined, color: AppColors.error, size: 18),
-                      SizedBox(width: 8),
-                      Text('Laporkan Iklan', style: TextStyle(color: AppColors.error)),
-                    ],
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
-        ],
+        ),
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Photo Carousel
-                  Stack(
-                    alignment: Alignment.bottomCenter,
+                  const SizedBox(height: 8),
+
+                  // Breadcrumb / Category Row with Favorite & Bookmark icons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      SizedBox(
-                        height: 280,
-                        width: double.infinity,
-                        child: PageView.builder(
-                          controller: _imagePageController,
-                          itemCount: listing.images.isNotEmpty ? listing.images.length : 1,
-                          onPageChanged: (i) => setState(() => _activeImageIndex = i),
-                          itemBuilder: (context, index) {
-                            final imgUrl = listing.images.isNotEmpty
-                                ? listing.images[index]
-                                : 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600';
-                            return _buildDetailImage(imgUrl);
-                          },
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.near_me_outlined, size: 14, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Sleman • ${listing.categoryName}',
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-
-                      // Indicators
-                      if (listing.images.length > 1)
-                        Positioned(
-                          bottom: 12,
-                          child: Row(
-                            children: List.generate(
-                              listing.images.length,
-                              (idx) => Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 3),
-                                height: 6,
-                                width: _activeImageIndex == idx ? 16 : 6,
-                                decoration: BoxDecoration(
-                                  color: _activeImageIndex == idx ? Colors.white : Colors.white.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              listing.isFavorite ? Icons.favorite : Icons.favorite_border_rounded,
+                              color: listing.isFavorite ? AppColors.terracotta : AppColors.textPrimary,
+                              size: 22,
                             ),
+                            onPressed: () {
+                              listingProvider.toggleFavorite(currentUserId, listing);
+                            },
                           ),
-                        ),
-
-                      // Status Overlay if not Tersedia
-                      if (listing.status != 'Tersedia')
-                        Positioned(
-                          top: 16,
-                          left: 16,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: listing.isNegotiating ? AppColors.secondary : AppColors.statusCompleted,
-                              borderRadius: BorderRadius.circular(8),
+                          IconButton(
+                            icon: Icon(
+                              _isBookmarked ? Icons.bookmark : Icons.bookmark_border_rounded,
+                              color: AppColors.textPrimary,
+                              size: 22,
                             ),
-                            child: Text(
-                              listing.status.toUpperCase(),
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
+                            onPressed: () {
+                              setState(() => _isBookmarked = !_isBookmarked);
+                            },
                           ),
-                        ),
+                        ],
+                      ),
                     ],
                   ),
 
-                  // Header Info
-                  Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 6),
+
+                  // Photo Carousel with rounded container matching Image 2
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Stack(
                       children: [
-                        // Price Tag / Free badge
-                        Row(
-                          children: [
-                            if (isFree)
+                        SizedBox(
+                          height: 290,
+                          width: double.infinity,
+                          child: PageView.builder(
+                            controller: _imagePageController,
+                            itemCount: totalImages,
+                            onPageChanged: (i) => setState(() => _activeImageIndex = i),
+                            itemBuilder: (context, index) {
+                              final imgUrl = listing.images.isNotEmpty
+                                  ? listing.images[index]
+                                  : 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800';
+                              return _buildDetailImage(imgUrl);
+                            },
+                          ),
+                        ),
+
+                        // Badges at top-left: "• Tersedia" and "✔ Terverifikasi"
+                        Positioned(
+                          top: 14,
+                          left: 14,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: AppColors.freeBadge,
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: const Color(0xFF1B281E),
+                                  borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Row(
-                                  children: [
-                                    Icon(Icons.volunteer_activism, size: 14, color: Colors.white),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'GRATIS / FREE',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else
-                              Text(
-                                CurrencyFormatter.format(listing.price),
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            const Spacer(),
-                            // Category Tag
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.primarySurface,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                listing.categoryName,
-                                style: const TextStyle(
-                                  color: AppColors.primaryDark,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Title
-                        Text(
-                          listing.title,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                            height: 1.3,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Time & Condition Badge
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.border.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'Kondisi: ${listing.condition}',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '•  ${DateFormatter.formatRelative(listing.createdAt)}',
-                              style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        const Divider(),
-                        const SizedBox(height: 12),
-
-                        // Location & LBS Details
-                        const Text(
-                          'Lokasi Pengambilan & Pertemuan',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 6),
-                        // Short description above the map
-                        const Text(
-                          'Titik temu pengambilan barang disepakati langsung (COD) di sekitar area berikut. Disarankan memilih tempat umum yang aman dan ramai seperti minimarket, kafe, atau lobi kampus.',
-                          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.4),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Location name and distance pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.primarySurface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.primaryLight),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(7),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 16),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      listing.locationName,
-                                      style: const TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primaryDark,
-                                      ),
-                                    ),
-                                    if (distanceMeters != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Text(
-                                          'Perkiraan Jarak: ${LocationHelper.formatDistance(distanceMeters)} dari posisi Anda',
-                                          style: const TextStyle(
-                                            fontSize: 11.5,
-                                            color: AppColors.textSecondary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Interactive Pickup Location Map (Draggable, Zoom In/Out, Google Maps style)
-                        PickupLocationMapWidget(
-                          latitude: listing.latitude ?? -7.7601,
-                          longitude: listing.longitude ?? 110.3752,
-                          locationName: listing.locationName,
-                          distanceMeters: distanceMeters,
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Safety tip below map
-                        const Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.shield_outlined, color: AppColors.textSecondary, size: 14),
-                            SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'Tips Keamanan: Sepakati titik temu (COD) di tempat umum yang ramai. Hindari tempat sepi atau waktu larut malam.',
-                                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Description
-                        const Text(
-                          'Deskripsi Barang',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          listing.description,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textPrimary,
-                            height: 1.6,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const Divider(),
-                        const SizedBox(height: 12),
-
-                        // Seller Card
-                        const Text(
-                          'Informasi Pemilik Barang',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 24,
-                                backgroundColor: AppColors.primarySurface,
-                                backgroundImage: listing.sellerAvatar != null
-                                    ? NetworkImage(listing.sellerAvatar!)
-                                    : null,
-                                child: listing.sellerAvatar == null
-                                    ? const Icon(Icons.person, color: AppColors.primary)
-                                    : null,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      listing.sellerName,
-                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    const Row(
-                                      children: [
-                                        Icon(Icons.verified_rounded, size: 14, color: AppColors.primary),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Anggota Terverifikasi jadiGuna',
-                                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Blockchain audit provenance link
-                        InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySurface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.primaryLight),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.history_rounded, color: AppColors.primary, size: 22),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Riwayat Aktivitas Barang',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.primaryDark,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Setiap perubahan status tercatat aman dan terverifikasi konsisten.',
-                                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                                      ),
-                                    ],
+                                child: Text(
+                                  '• ${listing.status}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
-                              ],
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.92),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_circle_outline_rounded, size: 12, color: AppColors.primary),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Terverifikasi',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Expand icon (Bottom Left)
+                        Positioned(
+                          bottom: 14,
+                          left: 14,
+                          child: Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.crop_free_rounded,
+                              size: 16,
+                              color: Colors.white,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 32),
+
+                        // Image Counter "1/4" (Bottom Right)
+                        Positioned(
+                          bottom: 14,
+                          right: 14,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${_activeImageIndex + 1}/$totalImages',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 18),
+
+                  // Title & Subtitle
+                  Text(
+                    listing.title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      height: 1.25,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Bonus rak buku kecil serasi • Dijual cepat karena relokasi kos',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Price Row & Bisa Nego Tag
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        isFree ? 'RP.0' : CurrencyFormatter.format(listing.price),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: isFree ? AppColors.terracotta : AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDECE8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          isFree ? '100% Gratis' : 'Bisa Nego Santai',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.terracotta,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Condition Pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1EFEA),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Kondisi: 9/10 (${listing.condition})',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Location Row
+                  Row(
+                    children: [
+                      const Icon(Icons.near_me_outlined, size: 14, color: AppColors.terracotta),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          distanceMeters != null
+                              ? '${listing.locationName} • ${LocationHelper.formatDistance(distanceMeters)} dari lokasimu'
+                              : 'Jl. Kaliurang Km 5, Sleman • 800 m dari lokasimu',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // RINGKASAN CERDAS AI Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3EFE7),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE5DFD5), width: 1),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: const [
+                                Icon(Icons.auto_awesome, size: 16, color: AppColors.primary),
+                                SizedBox(width: 6),
+                                Text(
+                                  'RINGKASAN CERDAS AI',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF27382B),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Text(
+                                'LLM Analisis',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          '“Kondisi kayu jati belanda kokoh tanpa jejak rayap, permukaan mulus baru di-finishing ulang vernis doff. Pemilik melepas karena telah wisuda & persiapan pindah kota. Sangat mudah diangkut motor roda dua karena sistem kaki baut modular knock-down.”',
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.45,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: const [
+                            Icon(Icons.verified_outlined, size: 13, color: AppColors.textSecondary),
+                            SizedBox(width: 4),
+                            Text(
+                              '98% Relevansi Real',
+                              style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                            ),
+                            SizedBox(width: 14),
+                            Icon(Icons.auto_awesome_outlined, size: 13, color: AppColors.textSecondary),
+                            SizedBox(width: 4),
+                            Text(
+                              'Dianalisis 5 mnt lalu',
+                              style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  // Spesifikasi & Deskripsi Section
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Spesifikasi & Deskripsi',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // 3 Dimension Boxes (Panjang | Lebar | Tinggi)
+                        Row(
+                          children: [
+                            _buildDimensionBox('PANJANG', '100 cm'),
+                            const SizedBox(width: 8),
+                            _buildDimensionBox('LEBAR', '50 cm'),
+                            const SizedBox(width: 8),
+                            _buildDimensionBox('TINGGI', '75 cm'),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Checklist Bullets
+                        _buildChecklistRow('Bahan utama: Kayu Solid Jati Belanda tahan lembap, serat natural cantik.'),
+                        _buildChecklistRow('Dilengkapi 1 unit rak buku susun portabel (bisa dipindah kiri/kanan).'),
+                        _buildChecklistRow('Seluruh baut & ring L original masih lengkap, dapat kunci L bawaan.'),
+                        _buildChecklistRow('Tidak ada retak struktural, hanya goresan mikro wajar bekas laptop.'),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // PEMILIK BARANG Section
+                  const Text(
+                    'PEMILIK BARANG',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: AppColors.primarySurface,
+                          backgroundImage: NetworkImage(
+                            listing.sellerAvatar ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    listing.sellerName,
+                                    style: const TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.primary),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                '★ 4.9 • 24 transaksi sirkular',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              const Text(
+                                'Warga aktif Sleman sejak 2023',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F2EA),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.shield_outlined, size: 11, color: AppColors.primary),
+                              SizedBox(width: 3),
+                              Text(
+                                'Terverifikasi',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Titik Temu Aman (COD)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: const [
+                                Icon(Icons.location_on_outlined, color: AppColors.terracotta, size: 18),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Titik Temu Aman\n(COD)',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFDECE8),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Text(
+                                'Rekomendasi LBS',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.terracotta,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Area publik ramai, terang, dan dipantau CCTV 24 jam untuk transaksi tenang tanpa was-was.',
+                          style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, height: 1.35),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Minimap card preview
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            children: [
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                                child: SizedBox(
+                                  height: 120,
+                                  child: PickupLocationMapWidget(
+                                    latitude: listing.latitude ?? -7.7601,
+                                    longitude: listing.longitude ?? 110.3752,
+                                    locationName: listing.locationName,
+                                    distanceMeters: distanceMeters,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: const [
+                                          Text(
+                                            'Indomaret Point Pandega Marta',
+                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                          ),
+                                          Text(
+                                            'Aman • Parkir luas • Terang',
+                                            style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF1B281E),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.near_me_rounded, color: Colors.white, size: 11),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Rute',
+                                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Verifikasi Status Rantai
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: const [
+                                  Icon(Icons.token_rounded, color: AppColors.primary, size: 18),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Verifikasi Status\nRantai',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFD4E8D7),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      'SHA-256 Valid',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF265438),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Jejak riwayat kepemilikan dan integritas harga dicatat permanen dalam ledger sirkular lokal.',
+                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Block #1204
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9F7F3),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: const [
+                                    Text('Block #1204 • Genesis Created', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
+                                    Text('18 Okt • 14:20 WIB', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: const [
+                                    Text('Listing Awal (Rp 180.000)', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                                    Text('0x7f8a...b23d', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+
+                          // Block #1205
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFDECE8).withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: const [
+                                    Text('Block #1205 • Price Updated', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.terracotta)),
+                                    Text('19 Okt • 09:15 WIB', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: const [
+                                    Text('Penyesuaian Harga (Rp 150.000)', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                                    Text('0x3c9e...fe84', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.lock_outline_rounded, size: 12, color: AppColors.textTertiary),
+                              SizedBox(width: 4),
+                              Text(
+                                'Ledger Konsensus Komunitas Sleman Utara',
+                                style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
           ),
 
-          // Bottom Action Bar
+          // Bottom Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: AppColors.border)),
+              border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.8), width: 1)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
@@ -724,9 +1180,15 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   ? Row(
                       children: [
                         Expanded(
-                          child: CustomButton(
-                            text: 'Ubah Status Barang',
-                            icon: Icons.sync_alt_rounded,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                            ),
+                            icon: const Icon(Icons.sync_alt_rounded, size: 18),
+                            label: const Text('Ubah Status Barang', style: TextStyle(fontWeight: FontWeight.w700)),
                             onPressed: () => _showStatusDialog(context, listing, listingProvider, currentUserName),
                           ),
                         ),
@@ -734,10 +1196,57 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     )
                   : Row(
                       children: [
+                        // Nego Button
+                        InkWell(
+                          onTap: () async {
+                            final navigator = Navigator.of(context);
+                            final conv = await chatProvider.openConversationForListing(
+                              listing: listing,
+                              buyerId: currentUserId,
+                              buyerName: currentUserName,
+                            );
+                            if (!mounted) return;
+                            navigator.push(
+                              MaterialPageRoute(
+                                builder: (_) => ChatDetailScreen(conversation: conv),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(24),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1EFEA),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: Row(
+                              children: const [
+                                Icon(Icons.chat_bubble_outline_rounded, size: 16, color: AppColors.textPrimary),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Nego',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+
+                        // Ambil Barang Button
                         Expanded(
-                          child: CustomButton(
-                            text: isFree ? 'Hubungi untuk Mengambil' : 'Hubungi Penjual (Chat)',
-                            icon: Icons.chat_bubble_rounded,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF27382B),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                              elevation: 0,
+                            ),
                             onPressed: () async {
                               final navigator = Navigator.of(context);
                               final conv = await chatProvider.openConversationForListing(
@@ -752,10 +1261,78 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                 ),
                               );
                             },
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Ambil Barang',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                                ),
+                                SizedBox(width: 6),
+                                Icon(Icons.arrow_forward_rounded, size: 16),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDimensionBox(String label, String value) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6F3EC),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChecklistRow(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.check_circle_outline_rounded, size: 16, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textPrimary,
+                height: 1.35,
+              ),
             ),
           ),
         ],

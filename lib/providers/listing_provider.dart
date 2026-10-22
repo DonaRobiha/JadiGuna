@@ -263,11 +263,22 @@ class ListingProvider extends ChangeNotifier {
 
     // 1. Category Filter
     if (_selectedCategorySlug != 'semua' && _selectedCategorySlug.isNotEmpty) {
-      result = result.where((l) {
-        final slug = _selectedCategorySlug.toLowerCase();
-        return l.categoryId.toLowerCase().contains(slug) ||
-            l.categoryName.toLowerCase().contains(slug);
-      }).toList();
+      if (_selectedCategorySlug == 'gratis') {
+        result = result.where((l) => l.isFree).toList();
+      } else {
+        result = result.where((l) {
+          final slug = _selectedCategorySlug.toLowerCase();
+          final catName = l.categoryName.toLowerCase();
+          final catId = l.categoryId.toLowerCase();
+          if (slug == 'buku-hobi') {
+            return catName.contains('buku') || catName.contains('hobi') || catId.contains('buku') || catId.contains('hobi');
+          }
+          if (slug == 'perlengkapan-rumah') {
+            return catName.contains('perlengkapan') || catName.contains('rumah');
+          }
+          return catId.contains(slug) || catName.contains(slug);
+        }).toList();
+      }
     }
 
     // 2. Search Query Filter

@@ -18,63 +18,47 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSemua = category.slug == 'semua';
+    final bgColor = isSelected ? AppColors.categoryTan : AppColors.categoryTanLight;
+    final fgColor = isSelected ? Colors.white : AppColors.categoryTextDark;
+
     if (isGrid) {
       return Material(
-        color: isSelected ? AppColors.primary : AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        elevation: 0,
+        color: bgColor,
+        borderRadius: BorderRadius.circular(22),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(22),
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.border,
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isSelected
-                      ? AppColors.primary.withValues(alpha: 0.18)
-                      : Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(22),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Colors.white.withValues(alpha: 0.2)
-                        : AppColors.surfaceVariant,
-                    shape: BoxShape.circle,
+                if (!isSemua) ...[
+                  Icon(
+                    category.icon,
+                    size: 18,
+                    color: fgColor,
                   ),
-                  child: Center(
-                    child: Icon(
-                      category.icon,
-                      size: 16,
-                      color: isSelected ? Colors.white : AppColors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
                   child: Text(
                     category.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                      color: fgColor,
+                      letterSpacing: -0.1,
                     ),
                   ),
                 ),
@@ -88,39 +72,33 @@ class CategoryChip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: Material(
-        color: isSelected ? AppColors.primary : Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
+        color: isSelected ? AppColors.categoryTan : AppColors.categoryTanLight,
+        borderRadius: BorderRadius.circular(22),
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(22),
           onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.border,
-                width: 1,
-              ),
+              borderRadius: BorderRadius.circular(22),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  category.icon,
-                  size: 16,
-                  color: isSelected ? Colors.white : AppColors.primary,
-                ),
-                const SizedBox(width: 6),
+                if (!isSemua) ...[
+                  Icon(
+                    category.icon,
+                    size: 16,
+                    color: fgColor,
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 Text(
                   category.name,
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? Colors.white
-                        : Theme.of(context).textTheme.bodyMedium?.color,
+                    fontSize: 12.5,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    color: fgColor,
                   ),
                 ),
               ],
