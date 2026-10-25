@@ -166,16 +166,29 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                           children: [
                             const Text('Kondisi:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                             const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              initialValue: _selectedCondition,
-                              isExpanded: true,
-                              items: AppConstants.conditions
-                                  .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 11))))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) setState(() => _selectedCondition = v);
-                              },
-                            ),
+DropdownButtonFormField<String>(
+  initialValue: AppConstants.conditions.contains(_selectedCondition)
+      ? _selectedCondition
+      : AppConstants.conditions.toSet().first,
+  isExpanded: true,
+  items: AppConstants.conditions.toSet().map((c) {
+    return DropdownMenuItem<String>(
+      value: c,
+      child: Text(
+        c,
+        style: const TextStyle(fontSize: 11),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }).toList(),
+  onChanged: (v) {
+    if (v != null) {
+      setState(() {
+        _selectedCondition = v;
+      });
+    }
+  },
+),
                           ],
                         ),
                       ),

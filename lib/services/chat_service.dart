@@ -86,36 +86,78 @@ class ChatService {
     await _localDb.insertMessage(msg);
 
     // Simulate seller auto-reply for realistic interactive demo if buyer sends message
-    _scheduleSimulatedReply(conversationId, listingTitle ?? 'Barang');
+    _scheduleSimulatedReply(
+  conversationId,
+  listingTitle ?? 'Barang',
+  message,
+);
 
     return msg;
   }
 
-  void _scheduleSimulatedReply(String conversationId, String listingTitle) {
-    Future.delayed(const Duration(seconds: 4), () async {
-      final replies = [
-        'Halo kak! Masih ada nih, kondisinya sesuai foto ya.',
-        'Bisa banget kak, mau COD di sekitar kampus mana?',
-        'Siap kak, barang sudah saya siapkan. Nanti kabari saja kalau sudah dekat ya!',
-      ];
-      final replyText = replies[DateTime.now().second % replies.length];
 
-      final replyMsg = MessageModel(
-        id: 'msg-${const Uuid().v4().substring(0, 8)}',
-        conversationId: conversationId,
-        senderId: 'seller-simulated',
-        senderName: 'Pemilik Barang',
-        message: replyText,
-        createdAt: DateTime.now(),
-        isRead: false,
-      );
+void _scheduleSimulatedReply(
+  String conversationId,
+  String listingTitle,
+  String userMessage,
+) {
+  Future.delayed(const Duration(seconds: 2), () async {
+    final text = userMessage.toLowerCase();
 
-      await _localDb.insertMessage(replyMsg);
-      await _notificationService.showNewMessageNotification(
-        senderName: 'Pemilik Barang',
-        message: replyText,
-        itemTitle: listingTitle,
-      );
-    });
-  }
+    String replyText;
+
+    if (text.contains('cod') ||
+        text.contains('ketemuan') ||
+        text.contains('lokasi')) {
+      replyText =
+          'Boleh kak, kita bisa atur COD. '
+          'Kakak mau ketemuan di mana dan jam berapa?';
+    } else if (text.contains('foto') ||
+        text.contains('gambar')) {
+      replyText =
+          'Baik kak, foto tambahan barangnya '
+          'akan saya siapkan ya.';
+    } else if (text.contains('harga') ||
+        text.contains('nego') ||
+        text.contains('diskon')) {
+      replyText =
+          'Untuk harga $listingTitle, '
+          'boleh ajukan penawaran dulu ya kak.';
+    } else if (text.contains('masih ada') ||
+        text.contains('tersedia')) {
+      replyText =
+          'Halo kak, barangnya masih tersedia. '
+          'Silakan kalau mau tanya lebih lanjut ya.';
+    } else if (text.contains('sampai') ||
+        text.contains('sudah dekat') ||
+        text.contains('sudah di lokasi')) {
+      replyText =
+          'Baik kak, terima kasih sudah mengabari. '
+          'Mohon tunggu sebentar ya.';
+    } else {
+      replyText =
+          'Baik kak, terima kasih sudah menghubungi '
+          'saya terkait $listingTitle. '
+          'Ada yang ingin ditanyakan lagi?';
+    }
+
+    final replyMsg = MessageModel(
+      id: 'msg-${const Uuid().v4().substring(0, 8)}',
+      conversationId: conversationId,
+      senderId: 'seller-simulated',
+      senderName: 'Pemilik Barang',
+      message: replyText,
+      createdAt: DateTime.now(),
+      isRead: false,
+    );
+
+    await _localDb.insertMessage(replyMsg);
+
+    await _notificationService.showNewMessageNotification(
+      senderName: 'Pemilik Barang',
+      message: replyText,
+      itemTitle: listingTitle,
+    );
+  });
+}
 }

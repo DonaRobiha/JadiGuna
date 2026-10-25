@@ -53,16 +53,25 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: AppColors.primarySurface,
-                        backgroundImage: user?.profilePhotoPath != null
-                            ? NetworkImage(user!.profilePhotoPath!)
-                            : null,
-                        child: user?.profilePhotoPath == null
-                            ? const Icon(Icons.person, size: 34, color: AppColors.primary)
-                            : null,
-                      ),
+                      
+CircleAvatar(
+  radius: 30,
+  backgroundColor: AppColors.primarySurface,
+  backgroundImage: user?.profilePhotoPath != null &&
+          user!.profilePhotoPath!.startsWith('http')
+      ? NetworkImage(user.profilePhotoPath!)
+      : null,
+  child: user?.profilePhotoPath == null ||
+          user!.profilePhotoPath!.isEmpty ||
+          !user.profilePhotoPath!.startsWith('http')
+      ? const Icon(
+          Icons.person,
+          size: 34,
+          color: AppColors.primary,
+        )
+      : null,
+),
+
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(

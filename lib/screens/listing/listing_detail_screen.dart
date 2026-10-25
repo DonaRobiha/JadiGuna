@@ -266,18 +266,28 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
                   onPressed: () => Navigator.pop(context),
                 ),
-                const SizedBox(width: 4),
+const SizedBox(width: 4),
 
-                // Title "Detail Barang"
-                const Text(
-                  'Detail Barang',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.2,
-                  ),
-                ),
+// Logo JadiGuna tanpa lingkaran
+Image.asset(
+  'assets/logo_jadiguna.png',
+  width: 32,
+  height: 32,
+  fit: BoxFit.contain,
+),
+
+const SizedBox(width: 10),
+
+const Text(
+  'Detail Barang',
+  style: TextStyle(
+    fontSize: 17,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textPrimary,
+    letterSpacing: -0.2,
+  ),
+),
+
                 const Spacer(),
 
                 // Share Button
@@ -782,12 +792,14 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         CircleAvatar(
-                          radius: 22,
-                          backgroundColor: AppColors.primarySurface,
-                          backgroundImage: NetworkImage(
-                            listing.sellerAvatar ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-                          ),
-                        ),
+  radius: 22,
+  backgroundColor: AppColors.primarySurface,
+  child: Icon(
+    Icons.person,
+    color: AppColors.primary,
+    size: 28,
+  ),
+),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -1132,11 +1144,23 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           ),
 
           // Bottom Bar
+          
+          // Bottom Bar
+          
+          // Bottom Bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.8), width: 1)),
+              border: Border(
+                top: BorderSide(
+                  color: AppColors.border.withValues(alpha: 0.8),
+                  width: 1,
+                ),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.03),
@@ -1146,64 +1170,98 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               ],
             ),
             child: SafeArea(
-              child: isOwner
-                  ? Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                            ),
-                            icon: const Icon(Icons.sync_alt_rounded, size: 18),
-                            label: const Text('Ubah Status Barang', style: TextStyle(fontWeight: FontWeight.w700)),
-                            onPressed: () => _showStatusDialog(context, listing, listingProvider, currentUserName),
+              top: false,
+              child: SizedBox(
+                width: double.infinity,
+                child: isOwner
+                    ? ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
                           ),
                         ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                              elevation: 0,
-                            ),
-                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                            label: const Text(
-                              'Chat Penjual',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                            ),
-                            onPressed: () async {
-                              final navigator = Navigator.of(context);
-                              final conv = await chatProvider.openConversationForListing(
-                                listing: listing,
-                                buyerId: currentUserId,
-                                buyerName: currentUserName,
-                              );
-                              if (!mounted) return;
-                              navigator.push(
-                                MaterialPageRoute(
-                                  builder: (_) => ChatDetailScreen(conversation: conv),
-                                ),
-                              );
-                            },
-                          ),
+                        icon: const Icon(Icons.sync_alt_rounded, size: 18),
+                        label: const Text(
+                          'Ubah Status Barang',
+                          style: TextStyle(fontWeight: FontWeight.w700),
                         ),
-                      ],
-                    ),
+                        onPressed: () {
+                          _showStatusDialog(
+                            context,
+                            listing,
+                            listingProvider,
+                            currentUserName,
+                          );
+                        },
+                      )
+                    : ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'Chat Penjual',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        
+onPressed: () async {
+  final navigator = Navigator.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+
+  try {
+    final conversation =
+        await chatProvider.openConversationForListing(
+      listing: listing,
+      buyerId: currentUserId,
+      buyerName: currentUserName,
+    );
+
+    if (!mounted) return;
+
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => ChatDetailScreen(
+          conversation: conversation,
+        ),
+      ),
+    );
+  } catch (error, stackTrace) {
+    debugPrint('Gagal membuka chat: $error');
+    debugPrintStack(stackTrace: stackTrace);
+
+    if (!mounted) return;
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Gagal membuka chat. Silakan coba lagi.',
+        ),
+      ),
+    );
+  }
+},
+
+                      ),
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
 
   Widget _buildDimensionBox(String label, String value) {
     return Expanded(
