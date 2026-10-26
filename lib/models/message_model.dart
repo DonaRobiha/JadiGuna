@@ -12,6 +12,12 @@ class ConversationModel {
   final DateTime lastMessageTime;
   final int unreadCount;
 
+  // Rencana janji temu COD (null = belum diubah, pakai titik default).
+  final String? pickupName;
+  final double? pickupLatitude;
+  final double? pickupLongitude;
+  final DateTime? pickupTime;
+
   ConversationModel({
     required this.id,
     required this.listingId,
@@ -25,7 +31,37 @@ class ConversationModel {
     required this.lastMessage,
     required this.lastMessageTime,
     this.unreadCount = 0,
+    this.pickupName,
+    this.pickupLatitude,
+    this.pickupLongitude,
+    this.pickupTime,
   });
+
+  ConversationModel copyWithPickup({
+    required String pickupName,
+    required double pickupLatitude,
+    required double pickupLongitude,
+    required DateTime pickupTime,
+  }) {
+    return ConversationModel(
+      id: id,
+      listingId: listingId,
+      listingTitle: listingTitle,
+      listingImage: listingImage,
+      listingPrice: listingPrice,
+      buyerId: buyerId,
+      buyerName: buyerName,
+      sellerId: sellerId,
+      sellerName: sellerName,
+      lastMessage: lastMessage,
+      lastMessageTime: lastMessageTime,
+      unreadCount: unreadCount,
+      pickupName: pickupName,
+      pickupLatitude: pickupLatitude,
+      pickupLongitude: pickupLongitude,
+      pickupTime: pickupTime,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -41,6 +77,10 @@ class ConversationModel {
       'last_message': lastMessage,
       'last_message_time': lastMessageTime.toIso8601String(),
       'unread_count': unreadCount,
+      'pickup_name': pickupName,
+      'pickup_lat': pickupLatitude,
+      'pickup_lng': pickupLongitude,
+      'pickup_time': pickupTime?.toIso8601String(),
     };
   }
 
@@ -60,6 +100,12 @@ class ConversationModel {
           ? DateTime.tryParse(map['last_message_time'].toString()) ?? DateTime.now()
           : DateTime.now(),
       unreadCount: map['unread_count'] as int? ?? 0,
+      pickupName: map['pickup_name'] as String?,
+      pickupLatitude: (map['pickup_lat'] as num?)?.toDouble(),
+      pickupLongitude: (map['pickup_lng'] as num?)?.toDouble(),
+      pickupTime: map['pickup_time'] != null
+          ? DateTime.tryParse(map['pickup_time'].toString())
+          : null,
     );
   }
 }
@@ -73,6 +119,9 @@ class MessageModel {
   final DateTime createdAt;
   final bool isRead;
 
+  /// Path gambar lampiran (file lokal di Android, blob URL di web).
+  final String? imagePath;
+
   MessageModel({
     required this.id,
     required this.conversationId,
@@ -81,7 +130,10 @@ class MessageModel {
     required this.message,
     required this.createdAt,
     this.isRead = false,
+    this.imagePath,
   });
+
+  bool get hasImage => imagePath != null && imagePath!.isNotEmpty;
 
   Map<String, dynamic> toMap() {
     return {
@@ -92,6 +144,7 @@ class MessageModel {
       'message': message,
       'created_at': createdAt.toIso8601String(),
       'is_read': isRead ? 1 : 0,
+      'image_path': imagePath,
     };
   }
 
@@ -106,6 +159,7 @@ class MessageModel {
           ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
       isRead: map['is_read'] == 1 || map['is_read'] == true,
+      imagePath: map['image_path'] as String?,
     );
   }
 }

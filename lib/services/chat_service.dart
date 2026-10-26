@@ -62,6 +62,13 @@ class ChatService {
     );
     await _localDb.insertMessage(initMessage);
 
+    // Pesan pertama juga harus dibalas penjual (simulasi).
+    _scheduleSimulatedReply(
+      newConv.id,
+      listing.title,
+      initMessage.message,
+    );
+
     return newConv;
   }
 
@@ -72,6 +79,7 @@ class ChatService {
     required String senderName,
     required String message,
     String? listingTitle,
+    String? imagePath,
   }) async {
     final msg = MessageModel(
       id: 'msg-${const Uuid().v4().substring(0, 8)}',
@@ -81,32 +89,60 @@ class ChatService {
       message: message,
       createdAt: DateTime.now(),
       isRead: true,
+      imagePath: imagePath,
     );
 
     await _localDb.insertMessage(msg);
 
     // Simulate seller auto-reply for realistic interactive demo if buyer sends message
     _scheduleSimulatedReply(
-  conversationId,
-  listingTitle ?? 'Barang',
-  message,
-);
+      conversationId,
+      listingTitle ?? 'Barang',
+      message,
+      hasImage: imagePath != null && imagePath.isNotEmpty,
+    );
 
     return msg;
+  }
+
+  /// Simpan jadwal dan titik COD baru untuk sebuah percakapan.
+  Future<void> updatePickup({
+    required String conversationId,
+    required String name,
+    required double latitude,
+    required double longitude,
+    required DateTime time,
+  }) {
+    return _localDb.updateConversationPickup(
+      conversationId: conversationId,
+      name: name,
+      latitude: latitude,
+      longitude: longitude,
+      time: time,
+    );
   }
 
 
 void _scheduleSimulatedReply(
   String conversationId,
   String listingTitle,
-  String userMessage,
-) {
+  String userMessage, {
+  bool hasImage = false,
+}) {
   Future.delayed(const Duration(seconds: 2), () async {
     final text = userMessage.toLowerCase();
 
     String replyText;
 
-    if (text.contains('cod') ||
+    if (text.contains('jadwal')) {
+      replyText =
+          'Baik kak, jadwal COD yang baru sudah saya catat. '
+          'Sampai ketemu ya!';
+    } else if (hasImage && text.isEmpty) {
+      replyText =
+          'Foto sudah saya terima kak. '
+          'Ada yang ingin ditanyakan lagi?';
+    } else if (text.contains('cod') ||
         text.contains('ketemuan') ||
         text.contains('lokasi')) {
       replyText =

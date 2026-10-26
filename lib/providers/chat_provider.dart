@@ -41,6 +41,14 @@ class ChatProvider extends ChangeNotifier {
     _activeConversation = conv;
     await loadMessages(conv.id);
     await loadConversations();
+
+    // Balasan penjual (simulasi) masuk sekitar 2 detik; muat ulang setelahnya.
+    Future.delayed(const Duration(seconds: 3), () async {
+      if (_activeConversation?.id == conv.id) {
+        await loadMessages(conv.id);
+        await loadConversations();
+      }
+    });
     return conv;
   }
 
@@ -58,8 +66,11 @@ class ChatProvider extends ChangeNotifier {
     required String senderId,
     required String senderName,
     required String message,
+    String? imagePath,
   }) async {
-    if (_activeConversation == null || message.trim().isEmpty) return;
+    final hasImage = imagePath != null && imagePath.isNotEmpty;
+    if (_activeConversation == null) return;
+    if (message.trim().isEmpty && !hasImage) return;
 
     final msg = await _chatService.sendMessage(
       conversationId: _activeConversation!.id,
@@ -67,6 +78,7 @@ class ChatProvider extends ChangeNotifier {
       senderName: senderName,
       message: message.trim(),
       listingTitle: _activeConversation!.listingTitle,
+      imagePath: imagePath,
     );
 
     _currentMessages.add(msg);
@@ -82,5 +94,41 @@ class ChatProvider extends ChangeNotifier {
         await loadConversations();
       }
     });
+  }
+
+  /// Ubah jadwal/titik COD, lalu kabari penjual lewat pesan otomatis.
+  Future<void> updatePickup({
+    required String senderId,
+    required String senderName,
+    required String name,
+    required double latitude,
+    required double longitude,
+    required DateTime time,
+    required String announcement,
+  }) async {
+    final conv = _activeConversation;
+    if (conv == null) return;
+
+    await _chatService.updatePickup(
+      conversationId: conv.id,
+      name: name,
+      latitude: latitude,
+      longitude: longitude,
+      time: time,
+    );
+
+    _activeConversation = conv.copyWithPickup(
+      pickupName: name,
+      pickupLatitude: latitude,
+      pickupLongitude: longitude,
+      pickupTime: time,
+    );
+    notifyListeners();
+
+    await sendMessage(
+      senderId: senderId,
+      senderName: senderName,
+      message: announcement,
+    );
   }
 }

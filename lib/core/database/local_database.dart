@@ -48,9 +48,13 @@ class LocalDatabase {
     // Membuka database dan membuat tabel saat pertama kali digunakan.
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
       onOpen: (db) async {
+        // Pastikan kolom chat terbaru ada, apa pun versi database-nya.
+        await _ensureChatColumns(db);
+
         // Membersihkan data percakapan contoh tertentu.
         try {
           await db.delete(
@@ -92,6 +96,47 @@ class LocalDatabase {
         }
       },
     );
+  }
+
+  /// Menambah kolom chat yang belum ada. Aman dipanggil berulang kali.
+  Future<void> _ensureChatColumns(Database db) async {
+    Future<void> addIfMissing(String table, String column, String type) async {
+      final info = await db.rawQuery('PRAGMA table_info($table)');
+      final exists = info.any((row) => row['name'] == column);
+      if (!exists) {
+        await db.execute('ALTER TABLE $table ADD COLUMN $column $type');
+      }
+    }
+
+    try {
+      await addIfMissing('conversations', 'pickup_name', 'TEXT');
+      await addIfMissing('conversations', 'pickup_lat', 'REAL');
+      await addIfMissing('conversations', 'pickup_lng', 'REAL');
+      await addIfMissing('conversations', 'pickup_time', 'TEXT');
+      await addIfMissing('messages', 'image_path', 'TEXT');
+    } catch (e) {
+      debugPrint('Gagal menambah kolom chat: $e');
+    }
+  }
+
+  /// Migrasi dari versi 1 ke 2: kolom janji temu COD dan lampiran gambar.
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      const statements = [
+        'ALTER TABLE conversations ADD COLUMN pickup_name TEXT',
+        'ALTER TABLE conversations ADD COLUMN pickup_lat REAL',
+        'ALTER TABLE conversations ADD COLUMN pickup_lng REAL',
+        'ALTER TABLE conversations ADD COLUMN pickup_time TEXT',
+        'ALTER TABLE messages ADD COLUMN image_path TEXT',
+      ];
+      for (final sql in statements) {
+        try {
+          await db.execute(sql);
+        } catch (e) {
+          // Kolom sudah ada; aman diabaikan.
+        }
+      }
+    }
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -154,7 +199,11 @@ class LocalDatabase {
         seller_name TEXT NOT NULL,
         last_message TEXT NOT NULL,
         last_message_time TEXT NOT NULL,
-        unread_count INTEGER DEFAULT 0
+        unread_count INTEGER DEFAULT 0,
+        pickup_name TEXT,
+        pickup_lat REAL,
+        pickup_lng REAL,
+        pickup_time TEXT
       )
     ''');
 
@@ -167,7 +216,8 @@ class LocalDatabase {
         sender_name TEXT NOT NULL,
         message TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        is_read INTEGER DEFAULT 0
+        is_read INTEGER DEFAULT 0,
+        image_path TEXT
       )
     ''');
 
@@ -498,6 +548,27 @@ class LocalDatabase {
     await db.insert('conversations', conv.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  Future<void> updateConversationPickup({
+    required String conversationId,
+    required String name,
+    required double latitude,
+    required double longitude,
+    required DateTime time,
+  }) async {
+    final db = await database;
+    await db.update(
+      'conversations',
+      {
+        'pickup_name': name,
+        'pickup_lat': latitude,
+        'pickup_lng': longitude,
+        'pickup_time': time.toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [conversationId],
+    );
+  }
+
   Future<List<MessageModel>> getMessages(String conversationId) async {
     final db = await database;
     final maps = await db.query(
@@ -517,7 +588,9 @@ class LocalDatabase {
     await db.update(
       'conversations',
       {
-        'last_message': msg.message,
+        'last_message': msg.message.isEmpty && msg.hasImage
+            ? '📷 Foto'
+            : msg.message,
         'last_message_time': msg.createdAt.toIso8601String(),
       },
       where: 'id = ?',

@@ -1,13 +1,57 @@
+import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/date_formatter.dart';
 import '../../models/message_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../services/listing_service.dart';
+import '../../services/location_service.dart';
 import '../listing/listing_detail_screen.dart';
+import '../maps/gps_full_map_screen.dart';
+
+/// Titik pertemuan aman untuk COD.
+/// Koordinat masih perkiraan; sesuaikan dengan data lokasi yang sebenarnya.
+class _SafePoint {
+  final String name;
+  final String note;
+  final double latitude;
+  final double longitude;
+
+  const _SafePoint(this.name, this.note, this.latitude, this.longitude);
+}
+
+const List<_SafePoint> _safePoints = [
+  _SafePoint(
+    'Indomaret Point Pandega Marta',
+    'Titik kumpul area parkir depan ATM',
+    -7.7737,
+    110.3790,
+  ),
+  _SafePoint(
+    'Gerbang Utama UGM',
+    'Titik kumpul di dekat pos satpam',
+    -7.7714,
+    110.3776,
+  ),
+  _SafePoint(
+    'Tugu Yogyakarta',
+    'Titik kumpul area pedestrian',
+    -7.7829,
+    110.3671,
+  ),
+];
 
 class ChatDetailScreen extends StatefulWidget {
   final ConversationModel conversation;
@@ -24,6 +68,11 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _picker = ImagePicker();
+  final LocationService _locationService = LocationService();
+
+  double? _distanceMeters;
+  int _lastMessageCount = 0;
 
   static const String _fallbackAvatar =
       'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
@@ -39,11 +88,424 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _scrollToBottom();
-      }
+    // Pastikan format tanggal Indonesia siap dipakai.
+    DateFormatter.ensureInitialized().then((_) {
+      if (mounted) setState(() {});
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scrollToBottom();
+      final conv = Provider.of<ChatProvider>(
+        context,
+        listen: false,
+      ).activeConversation;
+      final point = _pickupPoint(conv ?? widget.conversation);
+      _loadDistance(point.latitude, point.longitude);
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Janji temu COD
+  // ---------------------------------------------------------------------
+
+  /// Titik COD aktif; memakai titik default bila belum pernah diubah.
+  ({String name, String note, double latitude, double longitude})
+      _pickupPoint(ConversationModel conv) {
+    if (conv.pickupName != null &&
+        conv.pickupLatitude != null &&
+        conv.pickupLongitude != null) {
+      final match = _safePoints.where((s) => s.name == conv.pickupName);
+      return (
+        name: conv.pickupName!,
+        note: match.isNotEmpty ? match.first.note : 'Titik pertemuan COD',
+        latitude: conv.pickupLatitude!,
+        longitude: conv.pickupLongitude!,
+      );
+    }
+    final d = _safePoints.first;
+    return (
+      name: d.name,
+      note: d.note,
+      latitude: d.latitude,
+      longitude: d.longitude,
+    );
+  }
+
+  DateTime _pickupTime(ConversationModel conv) {
+    if (conv.pickupTime != null) return conv.pickupTime!;
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, 19, 30);
+  }
+
+  String _formatPickupTime(DateTime t) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(t.year, t.month, t.day);
+    final diff = day.difference(today).inDays;
+
+    final prefix = diff == 0
+        ? 'Hari ini'
+        : diff == 1
+            ? 'Besok'
+            : DateFormatter.formatDate(t);
+    return '$prefix, ${DateFormatter.formatTime(t)} WIB';
+  }
+
+  String _formatDistance(double meters) {
+    if (meters < 1000) return '${meters.round()} m';
+    return '${(meters / 1000).toStringAsFixed(1)} km';
+  }
+
+  Future<void> _loadDistance(double lat, double lng) async {
+    try {
+      final d = await _locationService.calculateDistanceFromUser(lat, lng);
+      if (mounted) setState(() => _distanceMeters = d);
+    } catch (_) {
+      // Jarak hanya pelengkap; abaikan bila gagal.
+    }
+  }
+
+  void _openDirections(ConversationModel conv) {
+    final point = _pickupPoint(conv);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GpsFullMapScreen(
+          mode: GpsMapMode.pickupLocation,
+          initialLatitude: point.latitude,
+          initialLongitude: point.longitude,
+          locationTitle: point.name,
+          locationSubtitle: point.note,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openReschedule(ConversationModel conv) async {
+    final current = _pickupPoint(conv);
+    final currentTime = _pickupTime(conv);
+
+    final result = await showModalBottomSheet<_PickupChoice>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _RescheduleSheet(
+        initialPointName: current.name,
+        initialTime: currentTime.isBefore(DateTime.now())
+            ? DateTime.now().add(const Duration(hours: 1))
+            : currentTime,
+        formatTime: _formatPickupTime,
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+
+    try {
+      await chatProvider.updatePickup(
+        senderId: authProvider.user?.id ?? 'user-current-1',
+        senderName: authProvider.user?.name ?? 'Saya',
+        name: result.point.name,
+        latitude: result.point.latitude,
+        longitude: result.point.longitude,
+        time: result.time,
+        announcement:
+            'Saya ingin mengubah jadwal COD ke ${_formatPickupTime(result.time)} '
+            'di ${result.point.name}.',
+      );
+
+      if (!mounted) return;
+      _loadDistance(result.point.latitude, result.point.longitude);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jadwal COD berhasil diubah.')),
+      );
+    } catch (e) {
+      debugPrint('Gagal mengubah jadwal: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal mengubah jadwal. Silakan coba lagi.'),
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Bagikan dan laporkan
+  // ---------------------------------------------------------------------
+
+  /// Menyalin ringkasan percakapan ke clipboard (tanpa paket tambahan).
+  Future<void> _copyConversationSummary(ConversationModel conv) async {
+    final currentUserId =
+        Provider.of<AuthProvider>(context, listen: false).user?.id ??
+            'user-current-1';
+    final messages =
+        Provider.of<ChatProvider>(context, listen: false).currentMessages;
+    final point = _pickupPoint(conv);
+
+    final buffer = StringBuffer()
+      ..writeln('Percakapan jadiGuna: ${conv.listingTitle}')
+      ..writeln('COD: ${point.name}, ${_formatPickupTime(_pickupTime(conv))}')
+      ..writeln();
+
+    for (final m in messages) {
+      final who = m.senderId == currentUserId ? 'Saya' : m.senderName;
+      final text = m.message.isEmpty && m.hasImage ? '[Foto]' : m.message;
+      buffer.writeln('[${DateFormatter.formatTime(m.createdAt)}] $who: $text');
+    }
+
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ringkasan percakapan disalin.')),
+    );
+  }
+
+  void _showReportDialog() {
+    var reason = 'Konten Menyesatkan/Penipuan';
+    final detailsController = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    final reporterId =
+        Provider.of<AuthProvider>(context, listen: false).user?.id ??
+            'user-current-1';
+    final listingId = widget.conversation.listingId;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Laporkan Iklan/Penjual',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: reason,
+                isExpanded: true,
+                items: const [
+                  'Konten Menyesatkan/Penipuan',
+                  'Meminta transfer di luar platform',
+                  'Perilaku tidak pantas',
+                  'Spam',
+                  'Lainnya',
+                ]
+                    .map(
+                      (e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e, style: const TextStyle(fontSize: 13)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setDialogState(() => reason = val);
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: detailsController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  hintText: 'Keterangan tambahan (opsional)...',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                try {
+                  await ListingService().reportListing(
+                    listingId: listingId,
+                    reporterId: reporterId,
+                    reason: reason,
+                    details: detailsController.text.trim(),
+                  );
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Laporan diterima. Tim admin akan meninjaunya.'),
+                    ),
+                  );
+                } catch (_) {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Gagal mengirim laporan. Coba lagi.'),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Kirim Laporan'),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) => detailsController.dispose());
+  }
+
+  // ---------------------------------------------------------------------
+  // Lampiran gambar
+  // ---------------------------------------------------------------------
+
+  void _showAttachmentSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Pilih dari galeri'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndSendImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Ambil foto'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndSendImage(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndSendImage(ImageSource source) async {
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 1280,
+        maxHeight: 1280,
+      );
+      if (picked == null) return;
+
+      var path = picked.path;
+
+      // Di Android, salin ke penyimpanan aplikasi supaya tidak hilang
+      // saat cache dibersihkan. Di web, path berupa blob URL dan dipakai apa adanya.
+      if (!kIsWeb) {
+        final dir = await getApplicationDocumentsDirectory();
+        final chatDir = Directory(p.join(dir.path, 'chat_images'));
+        if (!await chatDir.exists()) {
+          await chatDir.create(recursive: true);
+        }
+        final ext = p.extension(picked.path).isNotEmpty
+            ? p.extension(picked.path)
+            : '.jpg';
+        final dest = p.join(
+          chatDir.path,
+          '${DateTime.now().millisecondsSinceEpoch}$ext',
+        );
+        await File(picked.path).copy(dest);
+        path = dest;
+      }
+
+      if (!mounted) return;
+      await _handleSend(imagePath: path);
+    } catch (e) {
+      debugPrint('Gagal memilih gambar: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Tidak bisa mengakses kamera/galeri. Periksa izin aplikasi.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildChatImage(String path, {double width = 200}) {
+    final isRemote = kIsWeb ||
+        path.startsWith('http://') ||
+        path.startsWith('https://') ||
+        path.startsWith('blob:');
+
+    final errorBox = Container(
+      width: width,
+      height: 120,
+      color: AppColors.primaryLight,
+      child: const Icon(
+        Icons.broken_image_outlined,
+        color: AppColors.textSecondary,
+      ),
+    );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: isRemote
+          ? Image.network(
+              path,
+              width: width,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => errorBox,
+            )
+          : Image.file(
+              File(path),
+              width: width,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => errorBox,
+            ),
+    );
+  }
+
+  void _openImageViewer(String path) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              child: Center(child: _buildChatImage(path, width: 600)),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -63,10 +525,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Future<void> _handleSend([String? customText]) async {
+  Future<void> _handleSend({String? customText, String? imagePath}) async {
     final text = (customText ?? _textController.text).trim();
+    final hasImage = imagePath != null && imagePath.isNotEmpty;
 
-    if (text.isEmpty) return;
+    if (text.isEmpty && !hasImage) return;
 
     final authProvider = Provider.of<AuthProvider>(
       context,
@@ -80,7 +543,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final currentUserId = authProvider.user?.id ?? 'user-current-1';
     final currentUserName = authProvider.user?.name ?? 'Saya';
 
-    if (customText == null) {
+    if (customText == null && !hasImage) {
       _textController.clear();
     }
 
@@ -89,6 +552,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         senderId: currentUserId,
         senderName: currentUserName,
         message: text,
+        imagePath: imagePath,
       );
 
       if (!mounted) return;
@@ -117,62 +581,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     final currentUserId = authProvider.user?.id ?? 'user-current-1';
     final rawMessages = chatProvider.currentMessages;
+    final conv = chatProvider.activeConversation ?? widget.conversation;
+
+    // Gulir otomatis saat ada pesan baru (termasuk balasan penjual).
+    if (rawMessages.length != _lastMessageCount) {
+      _lastMessageCount = rawMessages.length;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToBottom();
+      });
+    }
 
     final sellerName = widget.conversation.sellerName.isNotEmpty
         ? widget.conversation.sellerName
         : 'Penjual';
 
-    final effectiveMessages = rawMessages.isNotEmpty
-        ? rawMessages
-        : <MessageModel>[
-            MessageModel(
-              id: 'm-1',
-              conversationId: widget.conversation.id,
-              senderId: widget.conversation.sellerId,
-              senderName: sellerName,
-              message:
-                  'Halo! Barangnya masih tersedia. Kapan kira-kira ada waktu untuk cek barang atau COD?',
-              createdAt: DateTime.now().subtract(
-                const Duration(minutes: 60),
-              ),
-              isRead: true,
-            ),
-            MessageModel(
-              id: 'm-2',
-              conversationId: widget.conversation.id,
-              senderId: currentUserId,
-              senderName: 'Saya',
-              message:
-                  'Sore, Mas. Apakah bisa COD nanti malam?',
-              createdAt: DateTime.now().subtract(
-                const Duration(minutes: 50),
-              ),
-              isRead: true,
-            ),
-            MessageModel(
-              id: 'm-3',
-              conversationId: widget.conversation.id,
-              senderId: widget.conversation.sellerId,
-              senderName: sellerName,
-              message:
-                  'Bisa, silakan kabari saya untuk waktu dan lokasi yang disepakati.',
-              createdAt: DateTime.now().subtract(
-                const Duration(minutes: 40),
-              ),
-              isRead: true,
-            ),
-            MessageModel(
-              id: 'm-4',
-              conversationId: widget.conversation.id,
-              senderId: currentUserId,
-              senderName: 'Saya',
-              message: 'Siap, terima kasih banyak!',
-              createdAt: DateTime.now().subtract(
-                const Duration(minutes: 20),
-              ),
-              isRead: true,
-            ),
-          ];
+    final effectiveMessages = rawMessages;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBF9F5),
@@ -210,13 +633,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     color: AppColors.textPrimary,
                     size: 22,
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Fitur berbagi percakapan'),
-                      ),
-                    );
-                  },
+                  tooltip: 'Salin ringkasan percakapan',
+                  onPressed: () => _copyConversationSummary(conv),
                 ),
                 const CircleAvatar(
                   radius: 17,
@@ -254,7 +672,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   const SizedBox(height: 12),
 
                   // Kartu janji temu COD.
-                  _buildAppointmentCard(context),
+                  _buildAppointmentCard(context, conv),
 
                   const SizedBox(height: 12),
 
@@ -284,6 +702,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ),
 
                   const SizedBox(height: 12),
+
+                  // Keadaan kosong: belum ada pesan.
+                  if (effectiveMessages.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Text(
+                        'Belum ada pesan. Sapa penjual untuk memulai percakapan.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
 
                   // Daftar pesan.
                   ...effectiveMessages.map((message) {
@@ -334,7 +766,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    onPressed: () => _handleSend(reply),
+                    onPressed: () => _handleSend(customText: reply),
                   ),
                 );
               },
@@ -421,7 +853,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ),
                 const SizedBox(height: 2),
                 const Text(
-                  '★ 4.9 • Aktif 5 mnt lalu',
+                  'Pemilik barang',
                   style: TextStyle(
                     fontSize: 11.5,
                     color: AppColors.textSecondary,
@@ -431,20 +863,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ],
             ),
           ),
-          IconButton(
+          PopupMenuButton<String>(
             tooltip: 'Opsi percakapan',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Opsi percakapan'),
-                ),
-              );
-            },
             icon: const Icon(
               Icons.more_vert_rounded,
               color: AppColors.textSecondary,
               size: 20,
             ),
+            onSelected: (value) {
+              if (value == 'listing') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ListingDetailScreen(
+                      listingId: widget.conversation.listingId,
+                    ),
+                  ),
+                );
+              } else if (value == 'report') {
+                _showReportDialog();
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'listing', child: Text('Lihat iklan')),
+              PopupMenuItem(value: 'report', child: Text('Laporkan iklan/penjual')),
+            ],
           ),
         ],
       ),
@@ -551,7 +994,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Widget _buildAppointmentCard(BuildContext context) {
+  Widget _buildAppointmentCard(
+    BuildContext context,
+    ConversationModel conv,
+  ) {
+    final point = _pickupPoint(conv);
+    final time = _pickupTime(conv);
+    final subtitle = _distanceMeters != null
+        ? 'Titik Aman Komunitas • ${_formatDistance(_distanceMeters!)}'
+        : 'Titik Aman Komunitas';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -612,26 +1064,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
           const SizedBox(height: 12),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.store_mall_directory_outlined,
                       color: AppColors.terracotta,
                       size: 16,
                     ),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Indomaret Point Pandega Marta',
-                        style: TextStyle(
+                        point.name,
+                        style: const TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -640,19 +1093,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.shield_outlined,
                       size: 12,
                       color: Color(0xFF2E6B4A),
                     ),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        'Titik Aman Komunitas • 1.4 km',
-                        style: TextStyle(
+                        subtitle,
+                        style: const TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF2E6B4A),
@@ -661,19 +1114,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.calendar_today_outlined,
                       size: 13,
                       color: AppColors.textPrimary,
                     ),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Hari ini, 19:30 WIB',
-                        style: TextStyle(
+                        _formatPickupTime(time),
+                        style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -686,66 +1139,103 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          Container(
-            height: 90,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: const Color(0xFFE5ECE7),
-              image: const DecorationImage(
-                image: NetworkImage(
-                  'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=600',
-                ),
-                fit: BoxFit.cover,
+
+          // Pratinjau peta titik pertemuan; ketuk untuk membuka peta penuh.
+          GestureDetector(
+            onTap: () => _openDirections(conv),
+            child: Container(
+              height: 110,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: const Color(0xFFE5ECE7),
               ),
-            ),
-            child: Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    color: Colors.white.withValues(alpha: 0.55),
-                  ),
-                ),
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 4,
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  IgnorePointer(
+                    child: FlutterMap(
+                      key: ValueKey('${point.latitude}_${point.longitude}'),
+                      options: MapOptions(
+                        initialCenter: LatLng(point.latitude, point.longitude),
+                        initialZoom: 15.5,
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.none,
                         ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+                      ),
                       children: [
-                        Icon(
-                          Icons.near_me_outlined,
-                          size: 12,
-                          color: AppColors.terracotta,
+                        TileLayer(
+                          urlTemplate:
+                              'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                          userAgentPackageName: 'com.jadiguna.jadiguna',
+                          fallbackUrl:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          maxZoom: 20,
                         ),
-                        SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            'Titik kumpul area parkir depan ATM',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: LatLng(point.latitude, point.longitude),
+                              width: 36,
+                              height: 36,
+                              child: const Icon(
+                                Icons.location_on,
+                                color: AppColors.terracotta,
+                                size: 32,
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  Positioned(
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.near_me_outlined,
+                              size: 12,
+                              color: AppColors.terracotta,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                point.note,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -762,10 +1252,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  icon: const Icon(
-                    Icons.explore_rounded,
-                    size: 14,
-                  ),
+                  icon: const Icon(Icons.explore_rounded, size: 14),
                   label: const Text(
                     'Petunjuk Arah',
                     style: TextStyle(
@@ -773,15 +1260,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Fitur petunjuk arah belum tersedia.',
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: () => _openDirections(conv),
                 ),
               ),
               const SizedBox(width: 8),
@@ -790,18 +1269,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppColors.textPrimary,
-                    side: const BorderSide(
-                      color: Color(0xFFDCD6CA),
-                    ),
+                    side: const BorderSide(color: Color(0xFFDCD6CA)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  icon: const Icon(
-                    Icons.calendar_month_outlined,
-                    size: 14,
-                  ),
+                  icon: const Icon(Icons.calendar_month_outlined, size: 14),
                   label: const Text(
                     'Ubah Jadwal',
                     style: TextStyle(
@@ -809,15 +1283,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Fitur perubahan jadwal belum tersedia.',
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: () => _openReschedule(conv),
                 ),
               ),
             ],
@@ -892,14 +1358,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  message.message,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: Colors.white,
-                    height: 1.35,
+                if (message.hasImage)
+                  GestureDetector(
+                    onTap: () => _openImageViewer(message.imagePath!),
+                    child: _buildChatImage(message.imagePath!),
                   ),
-                ),
+                if (message.hasImage && message.message.isNotEmpty)
+                  const SizedBox(height: 6),
+                if (message.message.isNotEmpty)
+                  Text(
+                    message.message,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Colors.white,
+                      height: 1.35,
+                    ),
+                  ),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -968,17 +1442,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        message.message,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.textPrimary,
-                          height: 1.35,
+                    if (message.hasImage)
+                      GestureDetector(
+                        onTap: () => _openImageViewer(message.imagePath!),
+                        child: _buildChatImage(message.imagePath!),
+                      ),
+                    if (message.hasImage && message.message.isNotEmpty)
+                      const SizedBox(height: 6),
+                    if (message.message.isNotEmpty)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          message.message,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.textPrimary,
+                            height: 1.35,
+                          ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 4),
                     Text(
                       time,
@@ -1015,21 +1497,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ),
               child: IconButton(
                 padding: EdgeInsets.zero,
-                tooltip: 'Lampiran',
+                tooltip: 'Kirim gambar',
                 icon: const Icon(
                   Icons.add,
                   size: 20,
                   color: AppColors.textPrimary,
                 ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Fitur lampiran gambar atau lokasi belum tersedia.',
-                      ),
-                    ),
-                  );
-                },
+                onPressed: _showAttachmentSheet,
               ),
             ),
             const SizedBox(width: 8),
@@ -1063,10 +1537,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         onSubmitted: (_) => _handleSend(),
                       ),
                     ),
-                    const Icon(
-                      Icons.camera_alt_outlined,
-                      color: AppColors.textSecondary,
-                      size: 20,
+                    IconButton(
+                      tooltip: 'Ambil foto',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
+                      icon: const Icon(
+                        Icons.camera_alt_outlined,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
+                      onPressed: () => _pickAndSendImage(ImageSource.camera),
                     ),
                   ],
                 ),
@@ -1090,6 +1573,222 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// -----------------------------------------------------------------------
+// Bottom sheet ubah jadwal COD
+// -----------------------------------------------------------------------
+
+class _PickupChoice {
+  final _SafePoint point;
+  final DateTime time;
+
+  const _PickupChoice(this.point, this.time);
+}
+
+class _RescheduleSheet extends StatefulWidget {
+  final String initialPointName;
+  final DateTime initialTime;
+  final String Function(DateTime) formatTime;
+
+  const _RescheduleSheet({
+    required this.initialPointName,
+    required this.initialTime,
+    required this.formatTime,
+  });
+
+  @override
+  State<_RescheduleSheet> createState() => _RescheduleSheetState();
+}
+
+class _RescheduleSheetState extends State<_RescheduleSheet> {
+  late DateTime _date;
+  late TimeOfDay _time;
+  late int _pointIndex;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _date = DateTime(
+      widget.initialTime.year,
+      widget.initialTime.month,
+      widget.initialTime.day,
+    );
+    _time = TimeOfDay.fromDateTime(widget.initialTime);
+    final idx = _safePoints.indexWhere((s) => s.name == widget.initialPointName);
+    _pointIndex = idx >= 0 ? idx : 0;
+  }
+
+  DateTime get _selected =>
+      DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute);
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date.isBefore(DateTime(now.year, now.month, now.day))
+          ? now
+          : _date,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 30)),
+    );
+    if (picked != null) {
+      setState(() {
+        _date = picked;
+        _error = null;
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(context: context, initialTime: _time);
+    if (picked != null) {
+      setState(() {
+        _time = picked;
+        _error = null;
+      });
+    }
+  }
+
+  void _submit() {
+    if (!_selected.isAfter(DateTime.now())) {
+      setState(() => _error = 'Pilih waktu yang belum lewat.');
+      return;
+    }
+    Navigator.pop(context, _PickupChoice(_safePoints[_pointIndex], _selected));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          16 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ubah Jadwal COD',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickDate,
+                      icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                      label: Text(DateFormatter.formatDate(_date)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickTime,
+                      icon: const Icon(Icons.access_time_rounded, size: 16),
+                      label: Text(_time.format(context)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Titik pertemuan',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              for (var i = 0; i < _safePoints.length; i++)
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => setState(() => _pointIndex = i),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _pointIndex == i
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          size: 20,
+                          color: _pointIndex == i
+                              ? AppColors.primary
+                              : AppColors.textTertiary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _safePoints[i].name,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                _safePoints[i].note,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_error != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _error!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.terracotta,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  onPressed: _submit,
+                  child: const Text('Simpan Jadwal'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
