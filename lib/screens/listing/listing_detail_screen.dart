@@ -1,6 +1,8 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/location_helper.dart';
@@ -35,7 +37,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         errorBuilder: (ctx, err, _) => Container(
           color: AppColors.primarySurface,
           child: const Center(
-            child: Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.primary),
+            child: Icon(
+              Icons.inventory_2_outlined,
+              size: 64,
+              color: AppColors.primary,
+            ),
           ),
         ),
       );
@@ -46,19 +52,33 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       errorBuilder: (ctx, err, _) => Container(
         color: AppColors.primarySurface,
         child: const Center(
-          child: Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.primary),
+          child: Icon(
+            Icons.inventory_2_outlined,
+            size: 64,
+            color: AppColors.primary,
+          ),
         ),
       ),
     );
   }
 
-  void _showStatusDialog(BuildContext context, ListingModel listing, ListingProvider listingProvider, String currentUserName) {
+  void _showStatusDialog(
+    BuildContext context,
+    ListingModel listing,
+    ListingProvider listingProvider,
+    String currentUserName,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Perbarui Status Iklan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Perbarui Status Iklan',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -71,12 +91,23 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 color: Colors.transparent,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.check_circle_outline, color: AppColors.statusAvailable),
-                  title: const Text('Tersedia', style: TextStyle(fontWeight: FontWeight.w600)),
+                  leading: const Icon(
+                    Icons.check_circle_outline,
+                    color: AppColors.statusAvailable,
+                  ),
+                  title: const Text(
+                    'Tersedia',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   subtitle: const Text('Barang masih aktif dan dapat ditawar'),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _changeStatus(listing, 'Tersedia', listingProvider, currentUserName);
+                    _changeStatus(
+                      listing,
+                      'Tersedia',
+                      listingProvider,
+                      currentUserName,
+                    );
                   },
                 ),
               ),
@@ -84,12 +115,23 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 color: Colors.transparent,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.handshake_outlined, color: AppColors.statusNegotiating),
-                  title: const Text('Dalam Kesepakatan', style: TextStyle(fontWeight: FontWeight.w600)),
+                  leading: const Icon(
+                    Icons.handshake_outlined,
+                    color: AppColors.statusNegotiating,
+                  ),
+                  title: const Text(
+                    'Dalam Kesepakatan',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   subtitle: const Text('Sedang janjian COD atau negosiasi'),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _changeStatus(listing, 'Dalam Kesepakatan', listingProvider, currentUserName);
+                    _changeStatus(
+                      listing,
+                      'Dalam Kesepakatan',
+                      listingProvider,
+                      currentUserName,
+                    );
                   },
                 ),
               ),
@@ -97,12 +139,25 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 color: Colors.transparent,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.task_alt, color: AppColors.statusCompleted),
-                  title: const Text('Selesai / Terjual', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Barang sudah berpindah tangan atau diserahkan'),
+                  leading: const Icon(
+                    Icons.task_alt,
+                    color: AppColors.statusCompleted,
+                  ),
+                  title: const Text(
+                    'Selesai / Terjual',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Barang sudah berpindah tangan atau diserahkan',
+                  ),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _changeStatus(listing, 'Selesai', listingProvider, currentUserName);
+                    _changeStatus(
+                      listing,
+                      'Selesai',
+                      listingProvider,
+                      currentUserName,
+                    );
                   },
                 ),
               ),
@@ -130,7 +185,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Status diubah menjadi: $newStatus (Tercatat di Riwayat)'),
+        content: Text(
+          'Status diubah menjadi: $newStatus (Tercatat di Riwayat)',
+        ),
         backgroundColor: AppColors.primary,
         action: SnackBarAction(
           label: 'Lihat Riwayat',
@@ -138,7 +195,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()),
+              MaterialPageRoute(
+                builder: (_) => BlockchainHistoryScreen(
+                  filterListingId: listing.id,
+                  filterItemTitle: listing.title,
+                ),
+              ),
             );
           },
         ),
@@ -157,26 +219,47 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Laporkan Iklan Ini', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                'Laporkan Iklan Ini',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Pilih alasan pelaporan:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const Text(
+                    'Pilih alasan pelaporan:',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: selectedReason,
                     isExpanded: true,
-                    items: [
-                      'Konten Menyesatkan/Penipuan',
-                      'Barang Ilegal/Dilarang',
-                      'Spam atau Duplikat',
-                      'Informasi Kontak Tidak Pantas',
-                      'Lainnya',
-                    ].map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13)))).toList(),
+                    items:
+                        [
+                              'Konten Menyesatkan/Penipuan',
+                              'Barang Ilegal/Dilarang',
+                              'Spam atau Duplikat',
+                              'Informasi Kontak Tidak Pantas',
+                              'Lainnya',
+                            ]
+                            .map(
+                              (e) => DropdownMenuItem(
+                                value: e,
+                                child: Text(
+                                  e,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            )
+                            .toList(),
                     onChanged: (val) {
-                      if (val != null) setDialogState(() => selectedReason = val);
+                      if (val != null) {
+                        setDialogState(() => selectedReason = val);
+                      }
                     },
                   ),
                   const SizedBox(height: 12),
@@ -195,12 +278,16 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   child: const Text('Batal'),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                  ),
                   onPressed: () {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Laporan Anda telah diterima. Tim admin akan meninjaunya.'),
+                        content: Text(
+                          'Laporan Anda telah diterima. Tim admin akan meninjaunya.',
+                        ),
                         backgroundColor: AppColors.primary,
                       ),
                     );
@@ -233,7 +320,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         price: 150000,
         condition: 'Sangat Baik',
         locationName: 'Jl. Kaliurang Km 5, Sleman',
-        images: ['https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800'],
+        images: [
+          'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800',
+        ],
         sellerName: 'Penjual jadiGuna',
         createdAt: DateTime.now(),
       ),
@@ -245,8 +334,17 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
     final userLat = listingProvider.userLocation['latitude'];
     final userLng = listingProvider.userLocation['longitude'];
-    final distanceMeters = (userLat != null && userLng != null && listing.latitude != null && listing.longitude != null)
-        ? LocationHelper.calculateDistanceInMeters(userLat, userLng, listing.latitude!, listing.longitude!)
+    final distanceMeters =
+        (userLat != null &&
+            userLng != null &&
+            listing.latitude != null &&
+            listing.longitude != null)
+        ? LocationHelper.calculateDistanceInMeters(
+            userLat,
+            userLng,
+            listing.latitude!,
+            listing.longitude!,
+          )
         : null;
 
     final isFree = listing.isFree;
@@ -258,12 +356,18 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         preferredSize: const Size.fromHeight(60),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10.0,
+              vertical: 6.0,
+            ),
             child: Row(
               children: [
                 // Back Button
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textPrimary,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
                 const SizedBox(width: 4),
@@ -282,7 +386,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
                 // Share Button
                 IconButton(
-                  icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary, size: 22),
+                  icon: const Icon(
+                    Icons.share_outlined,
+                    color: AppColors.textPrimary,
+                    size: 22,
+                  ),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -294,12 +402,21 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   },
                 ),
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary, size: 20),
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: AppColors.textPrimary,
+                    size: 20,
+                  ),
                   onSelected: (val) {
                     if (val == 'blockchain') {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => BlockchainHistoryScreen(
+                            filterListingId: listing.id,
+                            filterItemTitle: listing.title,
+                          ),
+                        ),
                       );
                     } else if (val == 'report') {
                       _showReportDialog(context, listing);
@@ -307,7 +424,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => AddEditListingScreen(listingToEdit: listing),
+                          builder: (_) =>
+                              AddEditListingScreen(listingToEdit: listing),
                         ),
                       );
                     } else if (val == 'delete') {
@@ -320,7 +438,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                       value: 'blockchain',
                       child: Row(
                         children: [
-                          Icon(Icons.history_rounded, color: AppColors.primary, size: 18),
+                          Icon(
+                            Icons.history_rounded,
+                            color: AppColors.primary,
+                            size: 18,
+                          ),
                           SizedBox(width: 8),
                           Text('Riwayat Ledger'),
                         ],
@@ -341,9 +463,16 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline, color: AppColors.error, size: 18),
+                            Icon(
+                              Icons.delete_outline,
+                              color: AppColors.error,
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
-                            Text('Hapus Iklan', style: TextStyle(color: AppColors.error)),
+                            Text(
+                              'Hapus Iklan',
+                              style: TextStyle(color: AppColors.error),
+                            ),
                           ],
                         ),
                       ),
@@ -352,9 +481,16 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         value: 'report',
                         child: Row(
                           children: [
-                            Icon(Icons.flag_outlined, color: AppColors.error, size: 18),
+                            Icon(
+                              Icons.flag_outlined,
+                              color: AppColors.error,
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
-                            Text('Laporkan Iklan', style: TextStyle(color: AppColors.error)),
+                            Text(
+                              'Laporkan Iklan',
+                              style: TextStyle(color: AppColors.error),
+                            ),
                           ],
                         ),
                       ),
@@ -383,7 +519,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.near_me_outlined, size: 14, color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.near_me_outlined,
+                            size: 14,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Sleman • ${listing.categoryName}',
@@ -400,17 +540,26 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         children: [
                           IconButton(
                             icon: Icon(
-                              listing.isFavorite ? Icons.favorite : Icons.favorite_border_rounded,
-                              color: listing.isFavorite ? AppColors.terracotta : AppColors.textPrimary,
+                              listing.isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border_rounded,
+                              color: listing.isFavorite
+                                  ? AppColors.terracotta
+                                  : AppColors.textPrimary,
                               size: 22,
                             ),
                             onPressed: () {
-                              listingProvider.toggleFavorite(currentUserId, listing);
+                              listingProvider.toggleFavorite(
+                                currentUserId,
+                                listing,
+                              );
                             },
                           ),
                           IconButton(
                             icon: Icon(
-                              _isBookmarked ? Icons.bookmark : Icons.bookmark_border_rounded,
+                              _isBookmarked
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_border_rounded,
                               color: AppColors.textPrimary,
                               size: 22,
                             ),
@@ -436,7 +585,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           child: PageView.builder(
                             controller: _imagePageController,
                             itemCount: totalImages,
-                            onPageChanged: (i) => setState(() => _activeImageIndex = i),
+                            onPageChanged: (i) =>
+                                setState(() => _activeImageIndex = i),
                             itemBuilder: (context, index) {
                               final imgUrl = listing.images.isNotEmpty
                                   ? listing.images[index]
@@ -454,7 +604,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1B281E),
                                   borderRadius: BorderRadius.circular(14),
@@ -470,7 +623,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               ),
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.92),
                                   borderRadius: BorderRadius.circular(14),
@@ -478,7 +634,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.check_circle_outline_rounded, size: 12, color: AppColors.primary),
+                                    Icon(
+                                      Icons.check_circle_outline_rounded,
+                                      size: 12,
+                                      color: AppColors.primary,
+                                    ),
                                     SizedBox(width: 4),
                                     Text(
                                       'Terverifikasi',
@@ -518,7 +678,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           bottom: 14,
                           right: 14,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.45),
                               borderRadius: BorderRadius.circular(12),
@@ -566,16 +729,23 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        isFree ? 'RP.0' : CurrencyFormatter.format(listing.price),
+                        isFree
+                            ? 'RP.0'
+                            : CurrencyFormatter.format(listing.price),
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          color: isFree ? AppColors.terracotta : AppColors.textPrimary,
+                          color: isFree
+                              ? AppColors.terracotta
+                              : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFDECE8),
                           borderRadius: BorderRadius.circular(12),
@@ -596,7 +766,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
                   // Condition Pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1EFEA),
                       borderRadius: BorderRadius.circular(8),
@@ -616,7 +789,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   // Location Row
                   Row(
                     children: [
-                      const Icon(Icons.near_me_outlined, size: 14, color: AppColors.terracotta),
+                      const Icon(
+                        Icons.near_me_outlined,
+                        size: 14,
+                        color: AppColors.terracotta,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -642,7 +819,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFF3EFE7),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE5DFD5), width: 1),
+                      border: Border.all(
+                        color: const Color(0xFFE5DFD5),
+                        width: 1,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,7 +832,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           children: [
                             Row(
                               children: const [
-                                Icon(Icons.auto_awesome, size: 16, color: AppColors.primary),
+                                Icon(
+                                  Icons.auto_awesome,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
                                 SizedBox(width: 6),
                                 Text(
                                   'RINGKASAN CERDAS AI',
@@ -666,7 +850,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               ],
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF27382B),
                                 borderRadius: BorderRadius.circular(10),
@@ -694,18 +881,34 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         const SizedBox(height: 12),
                         Row(
                           children: const [
-                            Icon(Icons.verified_outlined, size: 13, color: AppColors.textSecondary),
+                            Icon(
+                              Icons.verified_outlined,
+                              size: 13,
+                              color: AppColors.textSecondary,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               '98% Relevansi Real',
-                              style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             SizedBox(width: 14),
-                            Icon(Icons.auto_awesome_outlined, size: 13, color: AppColors.textSecondary),
+                            Icon(
+                              Icons.auto_awesome_outlined,
+                              size: 13,
+                              color: AppColors.textSecondary,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'Dianalisis 5 mnt lalu',
-                              style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
@@ -750,10 +953,18 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         const SizedBox(height: 16),
 
                         // Checklist Bullets
-                        _buildChecklistRow('Bahan utama: Kayu Solid Jati Belanda tahan lembap, serat natural cantik.'),
-                        _buildChecklistRow('Dilengkapi 1 unit rak buku susun portabel (bisa dipindah kiri/kanan).'),
-                        _buildChecklistRow('Seluruh baut & ring L original masih lengkap, dapat kunci L bawaan.'),
-                        _buildChecklistRow('Tidak ada retak struktural, hanya goresan mikro wajar bekas laptop.'),
+                        _buildChecklistRow(
+                          'Bahan utama: Kayu Solid Jati Belanda tahan lembap, serat natural cantik.',
+                        ),
+                        _buildChecklistRow(
+                          'Dilengkapi 1 unit rak buku susun portabel (bisa dipindah kiri/kanan).',
+                        ),
+                        _buildChecklistRow(
+                          'Seluruh baut & ring L original masih lengkap, dapat kunci L bawaan.',
+                        ),
+                        _buildChecklistRow(
+                          'Tidak ada retak struktural, hanya goresan mikro wajar bekas laptop.',
+                        ),
                       ],
                     ),
                   ),
@@ -804,7 +1015,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.primary),
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 2),
@@ -828,7 +1043,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFE8F2EA),
                             borderRadius: BorderRadius.circular(10),
@@ -836,7 +1054,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.shield_outlined, size: 11, color: AppColors.primary),
+                              Icon(
+                                Icons.shield_outlined,
+                                size: 11,
+                                color: AppColors.primary,
+                              ),
                               SizedBox(width: 3),
                               Text(
                                 'Terverifikasi',
@@ -872,7 +1094,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           children: [
                             Row(
                               children: const [
-                                Icon(Icons.location_on_outlined, color: AppColors.terracotta, size: 18),
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  color: AppColors.terracotta,
+                                  size: 18,
+                                ),
                                 SizedBox(width: 6),
                                 Text(
                                   'Titik Temu Aman\n(COD)',
@@ -886,7 +1112,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               ],
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFDECE8),
                                 borderRadius: BorderRadius.circular(10),
@@ -905,7 +1134,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         const SizedBox(height: 10),
                         const Text(
                           'Area publik ramai, terang, dan dipantau CCTV 24 jam untuk transaksi tenang tanpa was-was.',
-                          style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, height: 1.35),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.textSecondary,
+                            height: 1.35,
+                          ),
                         ),
                         const SizedBox(height: 12),
 
@@ -918,7 +1151,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           child: Column(
                             children: [
                               ClipRRect(
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(14),
+                                ),
                                 child: SizedBox(
                                   height: 120,
                                   child: PickupLocationMapWidget(
@@ -930,30 +1165,45 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                                 decoration: const BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
+                                  borderRadius: BorderRadius.vertical(
+                                    bottom: Radius.circular(14),
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: const [
                                           Text(
                                             'Indomaret Point Pandega Marta',
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
                                           Text(
                                             'Aman • Parkir luas • Terang',
-                                            style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              color: AppColors.textSecondary,
+                                            ),
                                           ),
                                         ],
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 5,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF1B281E),
                                         borderRadius: BorderRadius.circular(14),
@@ -961,11 +1211,19 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                       child: const Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.near_me_rounded, color: Colors.white, size: 11),
+                                          Icon(
+                                            Icons.near_me_rounded,
+                                            color: Colors.white,
+                                            size: 11,
+                                          ),
                                           SizedBox(width: 4),
                                           Text(
                                             'Rute',
-                                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -987,7 +1245,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => BlockchainHistoryScreen(
+                            filterListingId: listing.id,
+                            filterItemTitle: listing.title,
+                          ),
+                        ),
                       );
                     },
                     borderRadius: BorderRadius.circular(20),
@@ -1007,7 +1270,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                             children: [
                               Row(
                                 children: const [
-                                  Icon(Icons.token_rounded, color: AppColors.primary, size: 18),
+                                  Icon(
+                                    Icons.token_rounded,
+                                    color: AppColors.primary,
+                                    size: 18,
+                                  ),
                                   SizedBox(width: 6),
                                   Text(
                                     'Verifikasi Status\nRantai',
@@ -1023,7 +1290,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFD4E8D7),
                                       borderRadius: BorderRadius.circular(8),
@@ -1038,7 +1308,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
+                                  const Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    size: 18,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ],
                               ),
                             ],
@@ -1046,7 +1320,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           const SizedBox(height: 8),
                           const Text(
                             'Jejak riwayat kepemilikan dan integritas harga dicatat permanen dalam ledger sirkular lokal.',
-                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                           const SizedBox(height: 12),
 
@@ -1061,18 +1338,44 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: const [
-                                    Text('Block #1204 • Genesis Created', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
-                                    Text('18 Okt • 14:20 WIB', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
+                                    Text(
+                                      'Block #1204 • Genesis Created',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Text(
+                                      '18 Okt • 14:20 WIB',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 2),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: const [
-                                    Text('Listing Awal (Rp 180.000)', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                                    Text('0x7f8a...b23d', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
+                                    Text(
+                                      'Listing Awal (Rp 180.000)',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      '0x7f8a...b23d',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -1084,25 +1387,53 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFDECE8).withValues(alpha: 0.5),
+                              color: const Color(0xFFFDECE8)
+                                  .withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: const [
-                                    Text('Block #1205 • Price Updated', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.terracotta)),
-                                    Text('19 Okt • 09:15 WIB', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
+                                    Text(
+                                      'Block #1205 • Price Updated',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.terracotta,
+                                      ),
+                                    ),
+                                    Text(
+                                      '19 Okt • 09:15 WIB',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 2),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: const [
-                                    Text('Penyesuaian Harga (Rp 150.000)', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                                    Text('0x3c9e...fe84', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
+                                    Text(
+                                      'Penyesuaian Harga (Rp 150.000)',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      '0x3c9e...fe84',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -1112,11 +1443,18 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: const [
-                              Icon(Icons.lock_outline_rounded, size: 12, color: AppColors.textTertiary),
+                              Icon(
+                                Icons.lock_outline_rounded,
+                                size: 12,
+                                color: AppColors.textTertiary,
+                              ),
                               SizedBox(width: 4),
                               Text(
                                 'Ledger Konsensus Komunitas Sleman Utara',
-                                style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.textTertiary,
+                                ),
                               ),
                             ],
                           ),
@@ -1136,7 +1474,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.8), width: 1)),
+              border: Border(
+                top: BorderSide(
+                  color: AppColors.border.withValues(alpha: 0.8),
+                  width: 1,
+                ),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.03),
@@ -1155,11 +1498,21 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
                             ),
                             icon: const Icon(Icons.sync_alt_rounded, size: 18),
-                            label: const Text('Ubah Status Barang', style: TextStyle(fontWeight: FontWeight.w700)),
-                            onPressed: () => _showStatusDialog(context, listing, listingProvider, currentUserName),
+                            label: const Text(
+                              'Ubah Status Barang',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            onPressed: () => _showStatusDialog(
+                              context,
+                              listing,
+                              listingProvider,
+                              currentUserName,
+                            ),
                           ),
                         ),
                       ],
@@ -1172,25 +1525,35 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
                               elevation: 0,
                             ),
-                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                            icon: const Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              size: 18,
+                            ),
                             label: const Text(
                               'Chat Penjual',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             onPressed: () async {
                               final navigator = Navigator.of(context);
-                              final conv = await chatProvider.openConversationForListing(
-                                listing: listing,
-                                buyerId: currentUserId,
-                                buyerName: currentUserName,
-                              );
+                              final conv = await chatProvider
+                                  .openConversationForListing(
+                                    listing: listing,
+                                    buyerId: currentUserId,
+                                    buyerName: currentUserName,
+                                  );
                               if (!mounted) return;
                               navigator.push(
                                 MaterialPageRoute(
-                                  builder: (_) => ChatDetailScreen(conversation: conv),
+                                  builder: (_) =>
+                                      ChatDetailScreen(conversation: conv),
                                 ),
                               );
                             },
@@ -1245,7 +1608,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle_outline_rounded, size: 16, color: AppColors.primary),
+          const Icon(
+            Icons.check_circle_outline_rounded,
+            size: 16,
+            color: AppColors.primary,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

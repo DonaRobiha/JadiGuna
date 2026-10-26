@@ -6,7 +6,7 @@ class BlockchainVerificationResult {
   final int? corruptedBlockIndex;
   final String message;
 
-  BlockchainVerificationResult({
+  const BlockchainVerificationResult({
     required this.isValid,
     this.corruptedBlockIndex,
     required this.message,
@@ -18,6 +18,12 @@ class BlockchainService {
 
   Future<List<BlockModel>> getChain() async {
     return await _db.getBlockchainRecords();
+  }
+
+  /// Get blockchain records filtered for a specific listing
+  Future<List<BlockModel>> getChainForListing(String listingId) async {
+    final all = await getChain();
+    return all.where((b) => b.listingId == listingId).toList();
   }
 
   /// Add a new status transition block to the blockchain ledger
@@ -67,7 +73,7 @@ class BlockchainService {
   Future<BlockchainVerificationResult> verifyChain() async {
     final chain = await getChain();
     if (chain.isEmpty) {
-      return BlockchainVerificationResult(
+      return const BlockchainVerificationResult(
         isValid: true,
         message: 'Rantai blockchain masih kosong.',
       );
@@ -81,7 +87,8 @@ class BlockchainService {
         return BlockchainVerificationResult(
           isValid: false,
           corruptedBlockIndex: current.index,
-          message: 'Pelanggaran integritas terdeteksi pada Blok #${current.index}: Konten data telah dimanipulasi sehingga nilai hash SHA-256 tidak lagi cocok!',
+          message:
+              'Pelanggaran integritas terdeteksi pada Blok #${current.index}: Konten data telah dimanipulasi sehingga nilai hash SHA-256 tidak lagi cocok!',
         );
       }
 
@@ -92,7 +99,8 @@ class BlockchainService {
           return BlockchainVerificationResult(
             isValid: false,
             corruptedBlockIndex: current.index,
-            message: 'Tautan rantai terputus pada Blok #${current.index}: Previous Hash tidak cocok dengan Hash Blok #${previous.index}!',
+            message:
+                'Tautan rantai terputus pada Blok #${current.index}: Previous Hash tidak cocok dengan Hash Blok #${previous.index}!',
           );
         }
       }
@@ -100,7 +108,8 @@ class BlockchainService {
 
     return BlockchainVerificationResult(
       isValid: true,
-      message: 'Semua ${chain.length} blok terverifikasi valid! Rantai SHA-256 utuh tanpa ada perubahan ilegal.',
+      message:
+          'Semua ${chain.length} blok terverifikasi valid! Rantai SHA-256 utuh tanpa ada perubahan ilegal.',
     );
   }
 
