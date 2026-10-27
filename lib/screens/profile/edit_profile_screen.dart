@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
@@ -109,7 +110,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildAvatar() {
-    final path = _photoPath;
+    final path = (_photoPath == null || _photoPath!.isEmpty)
+        ? AppConstants.defaultProfilePhotoUrl
+        : _photoPath;
     ImageProvider? imageProvider;
 
     if (path != null && path.isNotEmpty) {

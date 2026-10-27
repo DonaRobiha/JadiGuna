@@ -3,6 +3,10 @@ class AppConstants {
   static const String appTagline = 'Beri Guna Baru, Temukan Lebih Dekat';
   static const String appVersion = '1.0.0';
 
+  // Foto profil default (diambil dari web, bukan dari asset)
+      static const String defaultProfilePhotoUrl =
+      'https://picsum.photos/id/64/300/300';
+
   // Item Categories (strictly matching reference UI)
   static const List<String> categories = [
     'Semua',
