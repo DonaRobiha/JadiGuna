@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/listing_model.dart';
 import '../core/constants/app_colors.dart';
 import '../core/utils/currency_formatter.dart';
 import '../core/utils/location_helper.dart';
+import '../core/utils/listing_image_provider.dart';
 
 class ListingCard extends StatelessWidget {
   final ListingModel listing;
@@ -24,15 +24,8 @@ class ListingCard extends StatelessWidget {
   });
 
   Widget _buildListingImage(String imgPath) {
-    if (imgPath.startsWith('http://') || imgPath.startsWith('https://')) {
-      return Image.network(
-        imgPath,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
-      );
-    }
-    return Image.file(
-      File(imgPath),
+    return Image(
+      image: listingImageProvider(imgPath),
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
     );

@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/listing_image_provider.dart';
 import '../../models/listing_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
@@ -172,10 +172,7 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
   }
 
   ImageProvider _getImageProvider(String path) {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return NetworkImage(path);
-    }
-    return FileImage(File(path));
+    return listingImageProvider(path);
   }
 
   void _showAddPhotoSheet() {

@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/location_helper.dart';
+import '../../core/utils/listing_image_provider.dart';
 import '../../models/listing_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
@@ -30,24 +29,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   bool _isBookmarked = false;
 
   Widget _buildDetailImage(String imgUrl) {
-    if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
-      return Image.network(
-        imgUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (ctx, err, _) => Container(
-          color: AppColors.primarySurface,
-          child: const Center(
-            child: Icon(
-              Icons.inventory_2_outlined,
-              size: 64,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-      );
-    }
-    return Image.file(
-      File(imgUrl),
+    return Image(
+      image: listingImageProvider(imgUrl),
       fit: BoxFit.cover,
       errorBuilder: (ctx, err, _) => Container(
         color: AppColors.primarySurface,
