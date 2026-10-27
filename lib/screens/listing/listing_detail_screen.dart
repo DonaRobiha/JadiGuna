@@ -42,6 +42,18 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         ),
       );
     }
+    if (imgUrl.startsWith('assets/')) {
+      return Image.asset(
+        imgUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, _) => Container(
+          color: AppColors.primarySurface,
+          child: const Center(
+            child: Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.primary),
+          ),
+        ),
+      );
+    }
     return Image.file(
       File(imgUrl),
       fit: BoxFit.cover,

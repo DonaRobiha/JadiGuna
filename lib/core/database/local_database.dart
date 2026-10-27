@@ -79,6 +79,13 @@ class LocalDatabase {
               await db.update(
                 'listings',
                 {
+                  'category_id': item.categoryId,
+                  'category_name': item.categoryName,
+                  'title': item.title,
+                  'description': item.description,
+                  'price': item.price,
+                  'condition': item.condition,
+                  'location_name': item.locationName,
                   'seller_name': item.sellerName,
                   'seller_avatar': item.sellerAvatar,
                   'seller_phone': item.sellerPhone,

@@ -31,6 +31,13 @@ class ListingCard extends StatelessWidget {
         errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
       );
     }
+    if (imgPath.startsWith('assets/')) {
+      return Image.asset(
+        imgPath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+      );
+    }
     return Image.file(
       File(imgPath),
       fit: BoxFit.cover,
