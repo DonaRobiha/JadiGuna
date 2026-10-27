@@ -1,286 +1,342 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
-import '../../services/sensor_service.dart';
+import '../listing/compass_screen.dart';
+import 'item_measurement_screen.dart';
 
-class SensorsScreen extends StatefulWidget {
+class SensorsScreen extends StatelessWidget {
   const SensorsScreen({super.key});
-
-  @override
-  State<SensorsScreen> createState() => _SensorsScreenState();
-}
-
-class _SensorsScreenState extends State<SensorsScreen> {
-  final SensorService _sensorService = SensorService();
-  int _shakeCounter = 0;
-  bool _isSensorsEnabled = true;
-
-  // Manual tilt sliders for emulator testing
-  final double _manualTiltX = 0.0;
-  double _manualTiltY = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _startSensors();
-  }
-
-  void _startSensors() {
-    _sensorService.startListening(
-      onShake: () {
-        if (mounted) {
-          setState(() => _shakeCounter++);
-        }
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _sensorService.stopListening();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Sensor Perangkat'),
-        actions: [
-          IconButton(
-            icon: Icon(_isSensorsEnabled ? Icons.sensors_rounded : Icons.sensors_off_rounded),
-            tooltip: _isSensorsEnabled ? 'Nonaktifkan Sensor' : 'Aktifkan Sensor',
-            onPressed: () {
-              setState(() {
-                _isSensorsEnabled = !_isSensorsEnabled;
-                if (_isSensorsEnabled) {
-                  _startSensors();
-                } else {
-                  _sensorService.stopListening();
-                }
-              });
-            },
-          ),
-        ],
+        title: const Text(
+          'Sensor Perangkat',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // SENSOR 1: ACCELEROMETER
-            _buildSectionHeader('Sensor 1 — Accelerometer (Deteksi Goyangan)'),
+            // Page Header / Intro description
             Container(
-              padding: const EdgeInsets.all(18),
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.sensors_rounded,
+                      color: AppColors.primary,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Fitur Sensor & Kamera jadiGuna',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Gunakan sensor dan kamera perangkat untuk membantu menemukan serta memeriksa barang di jadiGuna.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            const Text(
+              'FITUR UTAMA',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textTertiary,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ── CARD 1: Kompas Digital ─────────────────────────────────────────
+            _buildFeatureCard(
+              context: context,
+              icon: Icons.explore_rounded,
+              badgeText: 'Navigasi Titik Temu',
+              badgeColor: AppColors.primarySurface,
+              badgeTextColor: AppColors.primaryDark,
+              title: 'Kompas Digital',
+              description: 'Temukan arah menuju lokasi pengambilan barang dengan bantuan kompas perangkat Anda.',
+              buttonLabel: 'Buka Kompas',
+              buttonIcon: Icons.explore_outlined,
+              buttonColor: AppColors.primary,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CompassScreen(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── CARD 2: Pengukur Ukuran Barang ────────────────────────────────
+            _buildFeatureCard(
+              context: context,
+              icon: Icons.straighten_rounded,
+              badgeText: 'Kamera & Dimensi',
+              badgeColor: const Color(0xFFFDF4E6),
+              badgeTextColor: const Color(0xFFB45309),
+              title: 'Pengukur Ukuran Barang',
+              description: 'Perkirakan panjang, lebar, dan tinggi barang sebelum mengambilnya.',
+              buttonLabel: 'Mulai Mengukur',
+              buttonIcon: Icons.camera_alt_outlined,
+              buttonColor: const Color(0xFF1B281E),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ItemMeasurementScreen(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 22),
+
+            // ── Petunjuk Izin & Kompatibilitas Perangkat ───────────────────────
+            const Text(
+              'INFORMASI IZIN & KOMPATIBILITAS',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textTertiary,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Implementasi di jadiGuna: Menggoyangkan (shake) perangkat untuk me-refresh dan mengacak rekomendasi barang di beranda.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+                  _buildCompatibilityRow(
+                    icon: Icons.explore_rounded,
+                    title: 'Sensor Magnetometer (Kompas)',
+                    desc: 'Dibutuhkan untuk membaca orientasi mata angin perangkat secara real-time. Jika perangkat atau emulator tidak memiliki sensor magnetik, sistem beralih ke simulasi orientasi.',
                   ),
-                  const SizedBox(height: 16),
-
-                  ValueListenableBuilder<SensorData>(
-                    valueListenable: _sensorService.accelerometerData,
-                    builder: (context, data, _) {
-                      final gForce = sqrt(data.x * data.x + data.y * data.y + data.z * data.z);
-                      return Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildAxisGauge('Axis X', data.x.toStringAsFixed(2), Colors.blue),
-                              _buildAxisGauge('Axis Y', data.y.toStringAsFixed(2), Colors.green),
-                              _buildAxisGauge('Axis Z', data.z.toStringAsFixed(2), Colors.orange),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          LinearProgressIndicator(
-                            value: (gForce / 30.0).clamp(0.0, 1.0),
-                            backgroundColor: AppColors.background,
-                            color: gForce > 14.0 ? AppColors.secondary : AppColors.primary,
-                            minHeight: 8,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('G-Force: ${gForce.toStringAsFixed(1)} m/s²', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                              Text('Ambang Shake: > 14.0', style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
+                  const Divider(height: 22),
+                  _buildCompatibilityRow(
+                    icon: Icons.photo_camera_rounded,
+                    title: 'Kamera & Privasi Pengukuran',
+                    desc: 'Izin kamera hanya digunakan saat Anda aktif mengukur barang. Gambar diproses secara lokal di ponsel dan tidak diunggah ke server tanpa izin eksplisit Anda.',
                   ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 10),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.vibration_rounded, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          Text('Shake Terdeteksi: $_shakeCounter kali', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                        ],
-                      ),
-                      // Alternative button for emulator
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primarySurface,
-                          foregroundColor: AppColors.primaryDark,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        onPressed: () {
-                          _sensorService.simulateShake();
-                        },
-                        icon: const Icon(Icons.touch_app_rounded, size: 16),
-                        label: const Text('Simulasi Shake', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
+                  const Divider(height: 22),
+                  _buildCompatibilityRow(
+                    icon: Icons.location_on_rounded,
+                    title: 'Layanan Lokasi (GPS)',
+                    desc: 'Digunakan untuk menghitung jarak presisi serta sudut azimuth menuju koordinat titik temu COD barang.',
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
 
-            // SENSOR 2: GYROSCOPE
-            _buildSectionHeader('Sensor 2 — Gyroscope (Deteksi Orientasi / Kemiringan)'),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Implementasi di jadiGuna: Miringkan perangkat Anda untuk melihat efek interaktif pratinjau 3D kemiringan foto barang.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
-                  ),
-                  const SizedBox(height: 16),
-
-                  ValueListenableBuilder<SensorData>(
-                    valueListenable: _sensorService.gyroscopeData,
-                    builder: (context, data, _) {
-                      // Apply sensor tilt or fallback to manual slider
-                      final tiltX = (data.x.abs() > 0.05 ? data.x * 0.15 : _manualTiltX).clamp(-0.4, 0.4);
-                      final tiltY = (data.y.abs() > 0.05 ? data.y * 0.15 : _manualTiltY).clamp(-0.4, 0.4);
-
-                      return Center(
-                        child: Transform(
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.001) // perspective
-                            ..rotateX(tiltX)
-                            ..rotateY(tiltY),
-                          alignment: FractionalOffset.center,
-                          child: Container(
-                            width: 220,
-                            height: 140,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.25),
-                                  blurRadius: 16,
-                                  offset: Offset(tiltY * 30, tiltX * 30),
-                                ),
-                              ],
-                              image: const DecorationImage(
-                                image: NetworkImage('https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(12),
-                              alignment: Alignment.bottomLeft,
-                              child: const Text(
-                                'Efek Pratinjau 3D Tilt',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  const Divider(),
-                  const SizedBox(height: 10),
-
-                  // Manual Tilt Slider for Emulator
-                  const Text('Simulasi Kemiringan Manual (Untuk Emulator):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  Slider(
-                    value: _manualTiltY,
-                    min: -0.4,
-                    max: 0.4,
-                    divisions: 20,
-                    label: 'Kemiringan: ${(_manualTiltY * 100).round()}%',
-                    activeColor: AppColors.primary,
-                    onChanged: (val) {
-                      setState(() => _manualTiltY = val);
-                      _sensorService.simulateTilt(_manualTiltX, val, 0);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+  Widget _buildFeatureCard({
+    required BuildContext context,
+    required IconData icon,
+    required String badgeText,
+    required Color badgeColor,
+    required Color badgeTextColor,
+    required String title,
+    required String description,
+    required String buttonLabel,
+    required IconData buttonIcon,
+    required Color buttonColor,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryDark,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: badgeColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: badgeTextColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondary,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: buttonColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: onTap,
+              icon: Icon(buttonIcon, size: 18),
+              label: Text(
+                buttonLabel,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildAxisGauge(String label, String value, Color color) {
-    return Column(
+  Widget _buildCompatibilityRow({
+    required IconData icon,
+    required String title,
+    required String desc,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.3)),
-          ),
-          child: Text(
-            value,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: color),
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                desc,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
       ],
     );
   }

@@ -11,7 +11,9 @@ import '../../providers/chat_provider.dart';
 import '../chat/chat_detail_screen.dart';
 import '../blockchain/blockchain_history_screen.dart';
 import 'add_edit_listing_screen.dart';
+import 'compass_screen.dart';
 import 'pickup_location_map_widget.dart';
+import '../sensors/item_measurement_screen.dart';
 
 class ListingDetailScreen extends StatefulWidget {
   final String listingId;
@@ -757,6 +759,74 @@ const Text(
                             _buildDimensionBox('TINGGI', '75 cm'),
                           ],
                         ),
+                        const SizedBox(height: 12),
+
+                        // Tombol Ukur Ukuran Barang dengan Kamera
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ItemMeasurementScreen(listing: listing),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.primarySurface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.straighten_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Ukur Ukuran Barang dengan Kamera',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.primaryDark,
+                                        ),
+                                      ),
+                                      SizedBox(height: 1),
+                                      Text(
+                                        'Cek estimasi dimensi & kecocokan bagasi kendaraan',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 16),
 
                         // Checklist Bullets
@@ -991,6 +1061,87 @@ const Text(
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 14),
+
+                  // ── Kompas Menuju Lokasi Card ──────────────────────────
+                  if (listing.latitude != null && listing.longitude != null)
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CompassScreen(listing: listing),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryDark,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.18),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Compass icon badge
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.explore_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            // Text content
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Kompas Menuju Lokasi',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: -0.1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    'Lihat arah menuju titik temu barang menggunakan kompas perangkat Anda.',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: Colors.white.withValues(alpha: 0.72),
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                   const SizedBox(height: 20),
 

@@ -6,6 +6,8 @@ import '../core/constants/app_constants.dart';
 import '../core/utils/location_helper.dart';
 
 class LocationService {
+  static final LocationService instance = LocationService();
+
   /// Check if coordinates match the Android Emulator default dummy location (Googleplex, Mountain View)
   static bool isEmulatorDefaultCoordinates(double lat, double lng) {
     return (lat - 37.422).abs() < 0.05 && (lng - (-122.084)).abs() < 0.05;
