@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/blockchain_config.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../models/block_model.dart';
 import '../../services/blockchain_service.dart';
@@ -262,6 +264,11 @@ class _BlockchainHistoryScreenState extends State<BlockchainHistoryScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // Smart Contract & Wallet Configuration Card
+                  _buildSmartContractCard(),
+
                   const SizedBox(height: 22),
 
                   // Section Title Row
@@ -635,6 +642,21 @@ class _BlockchainHistoryScreenState extends State<BlockchainHistoryScreen> {
                               const Text('SHA-256', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
                             ],
                           ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Text('Publisher Dompet: ', style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary)),
+                              Text(
+                                BlockchainConfig.shortWalletAddress(),
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'monospace',
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 8),
                           _buildHashRow(
                             'Segel Keamanan Digital (SHA-256 Hash)',
@@ -657,6 +679,439 @@ class _BlockchainHistoryScreenState extends State<BlockchainHistoryScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSmartContractCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primaryLight),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: AppColors.primaryDark,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Smart Contract & Wallet Notarisasi',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Terhubung dengan Smart Contract Remix EVM',
+                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.freeBadgeBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.freeBadge),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 12, color: AppColors.primaryDark),
+                    SizedBox(width: 4),
+                    Text(
+                      'On-Chain',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+
+          // Contract Address Section
+          _buildAddressTile(
+            title: 'Alamat Smart Contract (Remix)',
+            address: BlockchainConfig.contractAddress,
+            icon: Icons.description_outlined,
+            tag: 'Contract',
+          ),
+          const SizedBox(height: 10),
+
+          // Wallet Owner Section
+          _buildAddressTile(
+            title: 'Dompet Wallet Pribadi (Owner / Notaris)',
+            address: BlockchainConfig.walletAddress,
+            icon: Icons.person_pin_circle_outlined,
+            tag: 'Publisher / Owner',
+          ),
+
+          const SizedBox(height: 14),
+
+          // Action Buttons: Quick Copy latest Hash & Guide
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () {
+                    if (_chain.isEmpty) return;
+                    final latest = _chain.last;
+                    final bytes32 = BlockchainConfig.toBytes32(latest.hash);
+                    Clipboard.setData(ClipboardData(text: bytes32));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Hash Blok #${latest.index} disalin (bytes32):\n$bytes32'),
+                        backgroundColor: AppColors.primary,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.content_copy_rounded, size: 14),
+                  label: const Text(
+                    'Salin Hash Terbaru',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => _showPublishGuideModal(context),
+                  icon: const Icon(Icons.help_outline_rounded, size: 14),
+                  label: const Text(
+                    'Panduan publish',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddressTile({
+    required String title,
+    required String address,
+    required IconData icon,
+    required String tag,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 13, color: AppColors.textSecondary),
+              const SizedBox(width: 5),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  tag,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  address,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: address));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$title berhasil disalin!'),
+                      backgroundColor: AppColors.primary,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Icon(Icons.copy_rounded, size: 14, color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPublishGuideModal(BuildContext context) {
+    final latestBlock = _chain.isNotEmpty ? _chain.last : null;
+    final latestBytes32 = latestBlock != null ? BlockchainConfig.toBytes32(latestBlock.hash) : '';
+    final tagSample = latestBlock != null
+        ? 'jadiGuna Blok #${latestBlock.index} - ${latestBlock.itemTitle}'
+        : 'jadiGuna Ledger';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primarySurface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.terminal_rounded, color: AppColors.primaryDark, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Panduan publishHash di Remix',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          'Data yang perlu diisi di tombol publishHash',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 14),
+
+              // Step 1: Account
+              _buildGuideField(
+                label: '1. Pastikan Account Pengirim di Remix adalah Dompet Anda:',
+                value: BlockchainConfig.walletAddress,
+                tooltipText: 'Dompet Publisher',
+              ),
+              const SizedBox(height: 12),
+
+              // Step 2: _hash (bytes32)
+              _buildGuideField(
+                label: '2. Masukkan ke kolom _hash (bytes32):',
+                value: latestBytes32,
+                tooltipText: 'Hash bytes32',
+              ),
+              const SizedBox(height: 12),
+
+              // Step 3: _tag (string)
+              _buildGuideField(
+                label: '3. Masukkan ke kolom _tag (string):',
+                value: tagSample,
+                tooltipText: 'Tag catatan',
+              ),
+              const SizedBox(height: 16),
+
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.freeBadgeBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.freeBadge),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primaryDark),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Setelah mengisi dua kolom di atas, klik tombol "transact" oranye di Remix dan konfirmasi transaksi di wallet Anda. Tombol lainnya diabaikan saja.',
+                        style: TextStyle(fontSize: 11.5, color: AppColors.primaryDark, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Saya Mengerti', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGuideField({
+    required String label,
+    required String value,
+    required String tooltipText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppColors.textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: value));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$tooltipText disalin!'),
+                      backgroundColor: AppColors.primary,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(Icons.copy_rounded, size: 15, color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -698,9 +1153,39 @@ class _BlockchainHistoryScreenState extends State<BlockchainHistoryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+            ),
+            if (isCurrent)
+              InkWell(
+                onTap: () {
+                  final bytes32 = BlockchainConfig.toBytes32(hash);
+                  Clipboard.setData(ClipboardData(text: bytes32));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Hash bytes32 disalin untuk Remix:\n$bytes32'),
+                      backgroundColor: AppColors.primary,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.copy_rounded, size: 11, color: AppColors.primary),
+                    SizedBox(width: 3),
+                    Text(
+                      'Salin bytes32 (Remix)',
+                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 3),
         Container(

@@ -106,8 +106,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const GpsFullMapScreen(
+                        builder: (_) => GpsFullMapScreen(
                           mode: GpsMapMode.userGps,
+                          initialLatitude: provider.userLocation['latitude'],
+                          initialLongitude: provider.userLocation['longitude'],
                         ),
                       ),
                     );

@@ -1,5 +1,6 @@
 import '../models/block_model.dart';
 import '../core/database/local_database.dart';
+import '../core/constants/blockchain_config.dart';
 
 class BlockchainVerificationResult {
   final bool isValid;
@@ -15,6 +16,14 @@ class BlockchainVerificationResult {
 
 class BlockchainService {
   final LocalDatabase _db = LocalDatabase.instance;
+
+  String get contractAddress => BlockchainConfig.contractAddress;
+  String get walletAddress => BlockchainConfig.walletAddress;
+  String get networkName => BlockchainConfig.networkName;
+  String get contractName => BlockchainConfig.contractName;
+
+  /// Konversi hash internal ke bytes32 untuk Remix
+  String formatForRemix(String hash) => BlockchainConfig.toBytes32(hash);
 
   Future<List<BlockModel>> getChain() async {
     return await _db.getBlockchainRecords();

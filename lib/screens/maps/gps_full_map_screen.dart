@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
@@ -37,9 +41,10 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  StreamSubscription<Position>? _positionStreamSub;
 
   LatLng _currentCenter = const LatLng(-7.797068, 110.370529);
-  double _currentZoom = 15.5;
+  double _currentZoom = 16.5;
 
   bool _isLocating = false;
   String _statusText = 'Mendeteksi sinyal GPS...';
@@ -84,7 +89,9 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
 
     // Initial coordinates
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
-      _currentCenter = LatLng(widget.initialLatitude!, widget.initialLongitude!);
+      if (!LocationService.isEmulatorDefaultCoordinates(widget.initialLatitude!, widget.initialLongitude!)) {
+        _currentCenter = LatLng(widget.initialLatitude!, widget.initialLongitude!);
+      }
     }
 
     if (widget.mode == GpsMapMode.userGps) {
@@ -96,19 +103,59 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
 
   @override
   void dispose() {
+    _positionStreamSub?.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  void _startLivePositionStream() {
+    if (widget.mode != GpsMapMode.userGps) return;
+    _positionStreamSub?.cancel();
+    try {
+      _positionStreamSub = _locationService.getPositionStream().listen(
+        (Position position) {
+          if (!mounted) return;
+          // Abaikan lokasi default mock Android Emulator (Mountain View, California)
+          if (LocationService.isEmulatorDefaultCoordinates(position.latitude, position.longitude)) {
+            return;
+          }
+          final liveCenter = LatLng(position.latitude, position.longitude);
+          setState(() {
+            _currentCenter = liveCenter;
+            _accuracyMeters = position.accuracy;
+            _isLocating = false;
+            _errorMessage = null;
+            _statusText = 'GPS Terhubung (Akurasi ±${position.accuracy.toStringAsFixed(1)}m)';
+          });
+          _mapController.move(liveCenter, _mapController.camera.zoom);
+        },
+        onError: (_) {},
+      );
+    } catch (_) {}
   }
 
   Future<void> _fetchCurrentGpsLocation() async {
     setState(() {
       _isLocating = true;
       _errorMessage = null;
-      _statusText = 'Menghubungkan ke satelit GPS...';
+      _statusText = 'Menghubungkan ke satelit GPS presisi tinggi...';
     });
 
     try {
-      final pos = await _locationService.getCurrentLocation();
+      // 1. Cek posisi hardware terakhir agar titik langsung terarah ke posisi nyata
+      final lastPos = await _locationService.getLastKnownPosition();
+      if (lastPos != null && mounted) {
+        final fastCenter = LatLng(lastPos.latitude, lastPos.longitude);
+        setState(() {
+          _currentCenter = fastCenter;
+          _accuracyMeters = lastPos.accuracy;
+          _statusText = 'Memperbarui koordinat satelit GPS...';
+        });
+        _mapController.move(fastCenter, 16.5);
+      }
+
+      // 2. Dapatkan koordinat GPS hardware satelit akurat
+      final pos = await _locationService.getCurrentLocation(highAccuracy: true);
       if (!mounted) return;
 
       if (pos != null) {
@@ -117,9 +164,9 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
           _currentCenter = newCenter;
           _isLocating = false;
           _accuracyMeters = pos.accuracy;
-          _statusText = 'GPS Terhubung (Akurasi ±${pos.accuracy.toStringAsFixed(0)}m)';
+          _statusText = 'GPS Terhubung (Akurasi ±${pos.accuracy.toStringAsFixed(1)}m)';
         });
-        _mapController.move(newCenter, 16.0);
+        _mapController.move(newCenter, 16.8);
       } else {
         // Fallback to last known position
         final fallback = await _locationService.getLastKnownOrCoordinates();
@@ -128,11 +175,14 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
         setState(() {
           _currentCenter = newCenter;
           _isLocating = false;
-          _errorMessage = 'Izin GPS belum aktif. Menggunakan lokasi default.';
-          _statusText = 'Lokasi Default';
+          _errorMessage = 'Sinyal GPS belum aktif atau lemah. Menggunakan lokasi tersimpan.';
+          _statusText = 'Lokasi Terakhir / Default';
         });
-        _mapController.move(newCenter, 15.0);
+        _mapController.move(newCenter, 15.5);
       }
+
+      // 3. Aktifkan pembaruan live stream
+      _startLivePositionStream();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -221,6 +271,16 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
               onPositionChanged: (camera, hasGesture) {
                 if (hasGesture) {
                   _currentZoom = camera.zoom;
+                }
+              },
+              onTap: (tapPosition, point) {
+                if (isUserMode) {
+                  _positionStreamSub?.cancel();
+                  setState(() {
+                    _currentCenter = point;
+                    _statusText = 'Titik Dipilih Manual di Peta';
+                    _accuracyMeters = null;
+                  });
                 }
               },
             ),
@@ -389,7 +449,13 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
               ],
             ),
           ),
-          if (isUserMode)
+          if (isUserMode) ...[
+            IconButton(
+              icon: const Icon(Icons.search_rounded, size: 22, color: AppColors.primary),
+              tooltip: 'Cari Lokasi / Alamat Anda',
+              onPressed: () => _openLocationSearchSheet(context),
+              splashRadius: 22,
+            ),
             IconButton(
               icon: _isLocating
                   ? const SizedBox(
@@ -402,8 +468,181 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
               onPressed: _isLocating ? null : _fetchCurrentGpsLocation,
               splashRadius: 22,
             ),
+          ],
         ],
       ),
+    );
+  }
+
+  void _openLocationSearchSheet(BuildContext context) {
+    final searchCtrl = TextEditingController();
+    List<Map<String, dynamic>> searchResults = [];
+    bool isSearching = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> executeSearch(String query) async {
+              if (query.trim().isEmpty) return;
+              setSheetState(() => isSearching = true);
+              try {
+                final url = Uri.parse(
+                  'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=6&countrycodes=id',
+                );
+                final res = await http.get(url, headers: {
+                  'User-Agent': 'JadiGunaApp/1.0',
+                }).timeout(const Duration(seconds: 5));
+                if (res.statusCode == 200) {
+                  final List<dynamic> data = jsonDecode(res.body);
+                  setSheetState(() {
+                    searchResults = data.map((item) => {
+                      'display_name': item['display_name'] as String,
+                      'lat': double.parse(item['lat'] as String),
+                      'lon': double.parse(item['lon'] as String),
+                    }).toList();
+                    isSearching = false;
+                  });
+                } else {
+                  setSheetState(() => isSearching = false);
+                }
+              } catch (_) {
+                setSheetState(() => isSearching = false);
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                top: 20,
+                left: 18,
+                right: 18,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Cari Titik Lokasi Anda',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Ketik nama jalan, perumahan, kelurahan, atau kota tempat Anda berada',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: searchCtrl,
+                      autofocus: true,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: executeSearch,
+                      decoration: InputDecoration(
+                        hintText: 'Contoh: Pogung Dalangan, Sleman, atau Cikarang...',
+                        hintStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.arrow_forward_rounded, color: AppColors.primary),
+                          onPressed: () => executeSearch(searchCtrl.text),
+                        ),
+                        filled: true,
+                        fillColor: AppColors.background,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (isSearching)
+                      const Expanded(
+                        child: Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
+                        ),
+                      )
+                    else if (searchResults.isEmpty)
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            searchCtrl.text.isNotEmpty
+                                ? 'Tidak ditemukan. Coba kata kunci yang lebih umum.'
+                                : 'Ketik lokasi di atas lalu tekan tombol Cari',
+                            style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: searchResults.length,
+                          separatorBuilder: (context, index) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final item = searchResults[index];
+                            final name = item['display_name'] as String;
+                            final lat = item['lat'] as double;
+                            final lon = item['lon'] as double;
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              leading: const Icon(Icons.location_on_rounded, color: AppColors.primary),
+                              title: Text(
+                                name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                              onTap: () {
+                                Navigator.pop(sheetContext);
+                                final newPoint = LatLng(lat, lon);
+                                _positionStreamSub?.cancel();
+                                setState(() {
+                                  _currentCenter = newPoint;
+                                  _statusText = 'Lokasi Terpilih: ${name.split(',').first}';
+                                  _accuracyMeters = null;
+                                });
+                                _mapController.move(newPoint, 17.0);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
