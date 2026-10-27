@@ -81,6 +81,8 @@ class LocalDatabase {
                   'description': item.description,
                   'price': item.price,
                   'seller_name': item.sellerName,
+                  'condition': item.condition,
+                  'location_name': item.locationName,
                   'seller_avatar': item.sellerAvatar,
                   'seller_phone': item.sellerPhone,
                   'images_csv': item.images.join(','),
