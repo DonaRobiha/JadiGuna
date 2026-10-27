@@ -15,6 +15,7 @@ import '../mini_game/pilah_barang_game_screen.dart';
 import '../blockchain/blockchain_history_screen.dart';
 import '../ai/ai_assistant_screen.dart';
 import '../feedback/feedback_screen.dart';
+import '../../widgets/profile_avatar.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -54,23 +55,7 @@ class ProfileScreen extends StatelessWidget {
                   Row(
                     children: [
                       
-CircleAvatar(
-  radius: 30,
-  backgroundColor: AppColors.primarySurface,
-  backgroundImage: user?.profilePhotoPath != null &&
-          user!.profilePhotoPath!.startsWith('http')
-      ? NetworkImage(user.profilePhotoPath!)
-      : null,
-  child: user?.profilePhotoPath == null ||
-          user!.profilePhotoPath!.isEmpty ||
-          !user.profilePhotoPath!.startsWith('http')
-      ? const Icon(
-          Icons.person,
-          size: 34,
-          color: AppColors.primary,
-        )
-      : null,
-),
+ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
 
                       const SizedBox(width: 14),
                       Expanded(
@@ -229,8 +214,8 @@ CircleAvatar(
                   _buildMenuItem(
                     icon: Icons.rate_review_outlined,
                     iconColor: AppColors.secondary,
-                    title: 'Saran dan Kesan',
-                    subtitle: 'Kirimkan masukan Anda untuk aplikasi jadiGuna',
+                                        title: 'Saran dan Kesan',
+                    subtitle: 'Saran dan kesan mata kuliah Pemrograman Aplikasi Mobile',
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedbackScreen()));
                     },
