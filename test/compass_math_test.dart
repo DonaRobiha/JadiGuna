@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 
 double computeHeading({
@@ -27,7 +28,6 @@ double computeHeading({
 
   final invA = 1.0 / math.sqrt(normsqA);
   final normAx = ax * invA;
-  final normAy = ay * invA;
   final normAz = az * invA;
 
   // M' = A x H (North vector)
@@ -48,8 +48,12 @@ void main() {
       // Flat: ax = 0, ay = 0, az = g
       // Facing North: mx = 0, my = bh, mz = bv
       final heading = computeHeading(
-        ax: 0, ay: 0, az: g,
-        mx: 0, my: bh, mz: bv,
+        ax: 0,
+        ay: 0,
+        az: g,
+        mx: 0,
+        my: bh,
+        mz: bv,
       );
       expect(heading, closeTo(0.0, 0.01));
     });
@@ -58,8 +62,12 @@ void main() {
       // Facing East: top of phone (+Y) points East, so North is to the left (-X)
       // mx = -bh, my = 0, mz = bv
       final heading = computeHeading(
-        ax: 0, ay: 0, az: g,
-        mx: -bh, my: 0, mz: bv,
+        ax: 0,
+        ay: 0,
+        az: g,
+        mx: -bh,
+        my: 0,
+        mz: bv,
       );
       expect(heading, closeTo(90.0, 0.01));
     });
@@ -68,8 +76,12 @@ void main() {
       // Facing South: top (+Y) points South, North is -Y
       // mx = 0, my = -bh, mz = bv
       final heading = computeHeading(
-        ax: 0, ay: 0, az: g,
-        mx: 0, my: -bh, mz: bv,
+        ax: 0,
+        ay: 0,
+        az: g,
+        mx: 0,
+        my: -bh,
+        mz: bv,
       );
       expect(heading, closeTo(180.0, 0.01));
     });
@@ -78,8 +90,12 @@ void main() {
       // Facing West: top (+Y) points West, North is to the right (+X)
       // mx = bh, my = 0, mz = bv
       final heading = computeHeading(
-        ax: 0, ay: 0, az: g,
-        mx: bh, my: 0, mz: bv,
+        ax: 0,
+        ay: 0,
+        az: g,
+        mx: bh,
+        my: 0,
+        mz: bv,
       );
       expect(heading, closeTo(270.0, 0.01));
     });
@@ -96,8 +112,12 @@ void main() {
       final mz = bh * math.sin(rad45) + bv * math.cos(rad45);
 
       final heading = computeHeading(
-        ax: 0, ay: ay, az: az,
-        mx: 0, my: my, mz: mz,
+        ax: 0,
+        ay: ay,
+        az: az,
+        mx: 0,
+        my: my,
+        mz: mz,
       );
       expect(heading, closeTo(0.0, 0.01));
     });
@@ -112,8 +132,12 @@ void main() {
       final mz = bv * math.cos(rad45);
 
       final heading = computeHeading(
-        ax: 0, ay: ay, az: az,
-        mx: mx, my: my, mz: mz,
+        ax: 0,
+        ay: ay,
+        az: az,
+        mx: mx,
+        my: my,
+        mz: mz,
       );
       expect(heading, closeTo(90.0, 0.01));
     });

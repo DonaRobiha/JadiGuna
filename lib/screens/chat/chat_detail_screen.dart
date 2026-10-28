@@ -56,10 +56,7 @@ const List<_SafePoint> _safePoints = [
 class ChatDetailScreen extends StatefulWidget {
   final ConversationModel conversation;
 
-  const ChatDetailScreen({
-    super.key,
-    required this.conversation,
-  });
+  const ChatDetailScreen({super.key, required this.conversation});
 
   @override
   State<ChatDetailScreen> createState() => _ChatDetailScreenState();
@@ -74,8 +71,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   double? _distanceMeters;
   int _lastMessageCount = 0;
 
-  static const String _fallbackAvatar =
-      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
 
   final List<String> _quickReplies = [
     'Saya sudah sampai di lokasi 👋',
@@ -110,8 +105,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   // ---------------------------------------------------------------------
 
   /// Titik COD aktif; memakai titik default bila belum pernah diubah.
-  ({String name, String note, double latitude, double longitude})
-      _pickupPoint(ConversationModel conv) {
+  ({String name, String note, double latitude, double longitude}) _pickupPoint(
+    ConversationModel conv,
+  ) {
     if (conv.pickupName != null &&
         conv.pickupLatitude != null &&
         conv.pickupLongitude != null) {
@@ -147,8 +143,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final prefix = diff == 0
         ? 'Hari ini'
         : diff == 1
-            ? 'Besok'
-            : DateFormatter.formatDate(t);
+        ? 'Besok'
+        : DateFormatter.formatDate(t);
     return '$prefix, ${DateFormatter.formatTime(t)} WIB';
   }
 
@@ -245,9 +241,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _copyConversationSummary(ConversationModel conv) async {
     final currentUserId =
         Provider.of<AuthProvider>(context, listen: false).user?.id ??
-            'user-current-1';
-    final messages =
-        Provider.of<ChatProvider>(context, listen: false).currentMessages;
+        'user-current-1';
+    final messages = Provider.of<ChatProvider>(
+      context,
+      listen: false,
+    ).currentMessages;
     final point = _pickupPoint(conv);
 
     final buffer = StringBuffer()
@@ -274,7 +272,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final reporterId =
         Provider.of<AuthProvider>(context, listen: false).user?.id ??
-            'user-current-1';
+        'user-current-1';
     final listingId = widget.conversation.listingId;
 
     showDialog<void>(
@@ -295,20 +293,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               DropdownButtonFormField<String>(
                 initialValue: reason,
                 isExpanded: true,
-                items: const [
-                  'Konten Menyesatkan/Penipuan',
-                  'Meminta transfer di luar platform',
-                  'Perilaku tidak pantas',
-                  'Spam',
-                  'Lainnya',
-                ]
-                    .map(
-                      (e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e, style: const TextStyle(fontSize: 13)),
-                      ),
-                    )
-                    .toList(),
+                items:
+                    const [
+                          'Konten Menyesatkan/Penipuan',
+                          'Meminta transfer di luar platform',
+                          'Perilaku tidak pantas',
+                          'Spam',
+                          'Lainnya',
+                        ]
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(
+                              e,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (val) {
                   if (val != null) setDialogState(() => reason = val);
                 },
@@ -344,7 +346,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   );
                   messenger.showSnackBar(
                     const SnackBar(
-                      content: Text('Laporan diterima. Tim admin akan meninjaunya.'),
+                      content: Text(
+                        'Laporan diterima. Tim admin akan meninjaunya.',
+                      ),
                     ),
                   );
                 } catch (_) {
@@ -450,7 +454,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Widget _buildChatImage(String path, {double width = 200}) {
-    final isRemote = kIsWeb ||
+    final isRemote =
+        kIsWeb ||
         path.startsWith('http://') ||
         path.startsWith('https://') ||
         path.startsWith('blob:');
@@ -472,13 +477,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               path,
               width: width,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => errorBox,
+              errorBuilder: (_, _, _) => errorBox,
             )
           : Image.file(
               File(path),
               width: width,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => errorBox,
+              errorBuilder: (_, _, _) => errorBox,
             ),
     );
   }
@@ -531,14 +536,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     if (text.isEmpty && !hasImage) return;
 
-    final authProvider = Provider.of<AuthProvider>(
-      context,
-      listen: false,
-    );
-    final chatProvider = Provider.of<ChatProvider>(
-      context,
-      listen: false,
-    );
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
     final currentUserId = authProvider.user?.id ?? 'user-current-1';
     final currentUserName = authProvider.user?.name ?? 'Saya';
@@ -603,10 +602,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         preferredSize: const Size.fromHeight(60),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Row(
               children: [
                 IconButton(
@@ -639,11 +635,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 const CircleAvatar(
                   radius: 17,
                   backgroundColor: AppColors.primaryLight,
-                  child: Icon(
-                    Icons.person,
-                    color: AppColors.primary,
-                    size: 22,
-                  ),
+                  child: Icon(Icons.person, color: AppColors.primary, size: 22),
                 ),
                 const SizedBox(width: 6),
               ],
@@ -748,9 +740,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   padding: const EdgeInsets.only(right: 8),
                   child: ActionChip(
                     padding: EdgeInsets.zero,
-                    labelPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                    ),
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 10),
                     label: Text(
                       reply,
                       style: const TextStyle(
@@ -760,9 +750,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       ),
                     ),
                     backgroundColor: Colors.white,
-                    side: const BorderSide(
-                      color: Color(0xFFE8E5DF),
-                    ),
+                    side: const BorderSide(color: Color(0xFFE8E5DF)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -784,10 +772,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Widget _buildSellerCard(String sellerName) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -800,11 +785,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               const CircleAvatar(
                 radius: 22,
                 backgroundColor: AppColors.primaryLight,
-                child: Icon(
-                  Icons.person,
-                  color: AppColors.primary,
-                  size: 28,
-                ),
+                child: Icon(Icons.person, color: AppColors.primary, size: 28),
               ),
               Positioned(
                 bottom: 0,
@@ -815,10 +796,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF48BB78),
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 2,
-                    ),
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
                 ),
               ),
@@ -886,7 +864,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'listing', child: Text('Lihat iklan')),
-              PopupMenuItem(value: 'report', child: Text('Laporkan iklan/penjual')),
+              PopupMenuItem(
+                value: 'report',
+                child: Text('Laporkan iklan/penjual'),
+              ),
             ],
           ),
         ],
@@ -902,9 +883,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ListingDetailScreen(
-              listingId: listing.listingId,
-            ),
+            builder: (_) => ListingDetailScreen(listingId: listing.listingId),
           ),
         );
       },
@@ -924,11 +903,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 width: 52,
                 height: 52,
                 child: Image.network(
-                  listing.listingImage.isNotEmpty
-                      ? listing.listingImage
-                      : 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=400',
+                  listing.listingImage.isNotEmpty ? listing.listingImage : 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=400',
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (_, _, _) => Container(
                     color: AppColors.primaryLight,
                     child: const Icon(
                       Icons.inventory_2_outlined,
@@ -957,9 +934,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    CurrencyFormatter.format(
-                      listing.listingPrice ?? 150000,
-                    ),
+                    CurrencyFormatter.format(listing.listingPrice ?? 150000),
                     style: const TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w800,
@@ -994,10 +969,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Widget _buildAppointmentCard(
-    BuildContext context,
-    ConversationModel conv,
-  ) {
+  Widget _buildAppointmentCard(BuildContext context, ConversationModel conv) {
     final point = _pickupPoint(conv);
     final time = _pickupTime(conv);
     final subtitle = _distanceMeters != null
@@ -1043,10 +1015,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
@@ -1164,8 +1133,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       ),
                       children: [
                         TileLayer(
-                          urlTemplate:
-                              'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                          urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                           userAgentPackageName: 'com.jadiguna.jadiguna',
                           fallbackUrl:
                               'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -1296,21 +1264,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Widget _buildSafetyBanner() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFFDECE8),
         borderRadius: BorderRadius.circular(16),
       ),
       child: const Row(
         children: [
-          Icon(
-            Icons.shield_outlined,
-            size: 14,
-            color: AppColors.terracotta,
-          ),
+          Icon(Icons.shield_outlined, size: 14, color: AppColors.terracotta),
           SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -1408,11 +1369,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           const CircleAvatar(
             radius: 14,
             backgroundColor: AppColors.primaryLight,
-            child: Icon(
-              Icons.person,
-              color: AppColors.primary,
-              size: 18,
-            ),
+            child: Icon(Icons.person, color: AppColors.primary, size: 18),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1579,7 +1536,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 }
 
-
 // -----------------------------------------------------------------------
 // Bottom sheet ubah jadwal COD
 // -----------------------------------------------------------------------
@@ -1621,7 +1577,9 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
       widget.initialTime.day,
     );
     _time = TimeOfDay.fromDateTime(widget.initialTime);
-    final idx = _safePoints.indexWhere((s) => s.name == widget.initialPointName);
+    final idx = _safePoints.indexWhere(
+      (s) => s.name == widget.initialPointName,
+    );
     _pointIndex = idx >= 0 ? idx : 0;
   }
 

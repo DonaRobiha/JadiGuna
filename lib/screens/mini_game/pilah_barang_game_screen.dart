@@ -63,13 +63,6 @@ class _PilahBarangGameScreenState extends State<PilahBarangGameScreen>
     'Perlengkapan',
   ];
 
-  static const List<String> _categoryIcons = [
-    '🪑',
-    '🔌',
-    '📚',
-    '👕',
-    '🧰',
-  ];
 
   static const List<GameItem> _allItems = [
     GameItem(name: 'Kipas Angin Berdiri', icon: '🌀', category: 'Elektronik', tip: 'Kipas yang rusak bisa diperbaiki; komponen elektronik perlu disalurkan dengan benar.'),
