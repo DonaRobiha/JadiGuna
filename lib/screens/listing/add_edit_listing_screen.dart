@@ -1,5 +1,9 @@
 import 'dart:io';
+import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
@@ -8,6 +12,7 @@ import '../../models/listing_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
 import '../../services/ai_service.dart';
+import '../sensors/item_measurement_screen.dart';
 
 class AddEditListingScreen extends StatefulWidget {
   final ListingModel? listingToEdit;
@@ -16,6 +21,10 @@ class AddEditListingScreen extends StatefulWidget {
   final String? initialCategory;
   final String? initialCondition;
   final bool? initialIsFree;
+  final double? initialLength;
+  final double? initialWidth;
+  final double? initialHeight;
+  final String? initialImagePath;
 
   const AddEditListingScreen({
     super.key,
@@ -25,6 +34,10 @@ class AddEditListingScreen extends StatefulWidget {
     this.initialCategory,
     this.initialCondition,
     this.initialIsFree,
+    this.initialLength,
+    this.initialWidth,
+    this.initialHeight,
+    this.initialImagePath,
   });
 
   @override
@@ -40,6 +53,9 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
   late TextEditingController _descController;
   late TextEditingController _priceController;
   late TextEditingController _locationController;
+  late TextEditingController _lengthController;
+  late TextEditingController _widthController;
+  late TextEditingController _heightController;
 
   late String _selectedCategory;
   late String _selectedCondition;
@@ -48,38 +64,72 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
   bool _isSaving = false;
   bool _allowNego = true;
   bool _hideAddressUntilChat = true;
+  bool _measuredWithSensor = false;
 
   final List<String> _photos = [];
+  final Map<String, Uint8List> _photoBytesCache = {};
 
   @override
   void initState() {
     super.initState();
     final edit = widget.listingToEdit;
+
+    String initLen = '';
+    String initWid = '';
+    String initHei = '';
+    if (widget.initialLength != null && widget.initialLength! > 0) {
+      initLen = widget.initialLength!.round().toString();
+      _measuredWithSensor = true;
+    }
+    if (widget.initialWidth != null && widget.initialWidth! > 0) {
+      initWid = widget.initialWidth!.round().toString();
+    }
+    if (widget.initialHeight != null && widget.initialHeight! > 0) {
+      initHei = widget.initialHeight!.round().toString();
+    }
+
+    if (edit != null && initLen.isEmpty) {
+      final match = RegExp(
+        r'\[Dimensi:\s*(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)\s*cm\]',
+        caseSensitive: false,
+      ).firstMatch(edit.description);
+      if (match != null) {
+        initLen = match.group(1) ?? '';
+        initWid = match.group(2) ?? '';
+        initHei = match.group(3) ?? '';
+        _measuredWithSensor = true;
+      }
+    }
+
+    _lengthController = TextEditingController(text: initLen);
+    _widthController = TextEditingController(text: initWid);
+    _heightController = TextEditingController(text: initHei);
+
     _titleController = TextEditingController(
-      text: edit?.title ?? widget.initialTitle ?? 'Kursi Belajar Ergonomis Putar',
+      text: edit?.title ?? widget.initialTitle ?? '',
     );
     _descController = TextEditingController(
-      text: edit?.description ?? widget.initialDescription ??
-          'Kursi kerja putar hidrolik masih berfungsi lancar turun-naik tanpa macet. Busa dudukan masih empuk, tebal, dan bebas noda basah. Roda lima lancar menggelinding di ubin atau karpet kos. Minus pemakaian normal di armrest kiri sedikit gores halus. Sangat cocok untuk mahasiswa...',
+      text: edit?.description ??
+          widget.initialDescription ??
+          (initLen.isNotEmpty ? '[Dimensi: $initLen × $initWid × $initHei cm]' : ''),
     );
     _priceController = TextEditingController(
       text: (edit != null && !edit.isFree)
           ? edit.price.toString()
-          : ((edit == null && (widget.initialIsFree ?? false)) ? '' : (edit == null ? '85000' : '')),
+          : ((edit == null && (widget.initialIsFree ?? false)) ? '' : (edit == null ? '' : '')),
     );
     _locationController = TextEditingController(
       text: edit?.locationName ?? 'Kos Griya Mahasiswa, Pogung Kidul, Kec. Mlati, Kabupaten Sleman, D.I. Yogyakarta',
     );
 
-    _selectedCategory = edit?.categoryName ?? widget.initialCategory ?? 'Furnitur';
+    _selectedCategory = edit?.categoryName ?? widget.initialCategory ?? 'Perlengkapan Rumah';
     _selectedCondition = edit?.condition ?? widget.initialCondition ?? 'Sangat Baik';
     _isFree = edit?.isFree ?? widget.initialIsFree ?? false;
 
     if (edit != null && edit.images.isNotEmpty) {
       _photos.addAll(edit.images);
-    } else {
-      // Default photo from Image 4
-      _photos.add('https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800');
+    } else if (widget.initialImagePath != null && widget.initialImagePath!.isNotEmpty) {
+      _photos.add(widget.initialImagePath!);
     }
   }
 
@@ -89,15 +139,131 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
     _descController.dispose();
     _priceController.dispose();
     _locationController.dispose();
+    _lengthController.dispose();
+    _widthController.dispose();
+    _heightController.dispose();
     super.dispose();
+  }
+
+  Future<Uint8List?> _getImageBytes(String path) async {
+    if (_photoBytesCache.containsKey(path)) {
+      return _photoBytesCache[path];
+    }
+    try {
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        final res = await http.get(Uri.parse(path)).timeout(const Duration(seconds: 10));
+        if (res.statusCode == 200) {
+          _photoBytesCache[path] = res.bodyBytes;
+          return res.bodyBytes;
+        }
+      } else if (kIsWeb || path.startsWith('blob:')) {
+        final xFile = XFile(path);
+        final b = await xFile.readAsBytes();
+        _photoBytesCache[path] = b;
+        return b;
+      } else if (path.startsWith('assets/')) {
+        final byteData = await rootBundle.load(path);
+        final b = byteData.buffer.asUint8List();
+        _photoBytesCache[path] = b;
+        return b;
+      } else {
+        final file = File(path);
+        if (await file.exists()) {
+          final b = await file.readAsBytes();
+          _photoBytesCache[path] = b;
+          return b;
+        }
+        final b = await XFile(path).readAsBytes();
+        _photoBytesCache[path] = b;
+        return b;
+      }
+    } catch (e) {
+      debugPrint('Gagal membaca bytes foto: $e');
+    }
+    return null;
+  }
+
+  void _showAiApiKeyDialog() async {
+    final currentKey = await AiService.getApiKey() ?? '';
+    final controller = TextEditingController(text: currentKey);
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.vpn_key_rounded, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('API Key Google Gemini', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Masukkan Google Gemini API Key Anda untuk mengaktifkan AI Vision Multimodal otomatis yang mengenali foto barang secara akurat.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: 'AIzaSy...',
+                labelText: 'Gemini API Key',
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Catatan: Jika dikosongkan, sistem tetap berjalan menggunakan analisis foto pintar berbasis heuristik lokal.',
+              style: TextStyle(fontSize: 11, color: AppColors.textTertiary, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              await AiService.saveApiKey(controller.text.trim());
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                    content: Text('Kunci API Gemini berhasil disimpan!'),
+                    backgroundColor: AppColors.primary,
+                  ),
+                );
+              }
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleAiHelp() async {
     final title = _titleController.text.trim();
-    if (title.isEmpty) {
+    final hasPhoto = _photos.isNotEmpty;
+
+    if (title.isEmpty && !hasPhoto) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Isi judul barang terlebih dahulu agar AI dapat memahami konteks barang Anda.'),
+          content: Text('Unggah foto barang atau ketik judul barang terlebih dahulu agar AI dapat memahami konteks barang Anda.'),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -106,31 +272,79 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
 
     setState(() => _isAiGenerating = true);
     try {
+      Uint8List? imageBytes;
+      String? imagePath;
+      if (hasPhoto) {
+        imagePath = _photos.first;
+        imageBytes = await _getImageBytes(imagePath);
+      }
+
+      Map<String, double>? dims;
+      final p = double.tryParse(_lengthController.text);
+      final l = double.tryParse(_widthController.text);
+      final t = double.tryParse(_heightController.text);
+      if (p != null && l != null && t != null) {
+        dims = {'panjang': p, 'lebar': l, 'tinggi': t};
+      }
+
       final result = await _aiService.generateAdDraft(
-        title: title,
+        title: title.isEmpty ? null : title,
         rawDetails: _descController.text,
         condition: _selectedCondition,
         isFree: _isFree,
         category: _selectedCategory,
+        imageBytes: imageBytes,
+        imagePath: imagePath,
+        dimensions: dims,
       );
 
       if (!mounted) return;
       setState(() {
-        _descController.text = result.description;
+        if (_titleController.text.trim().isEmpty || _titleController.text.trim() == 'Kursi Belajar Ergonomis Putar') {
+          _titleController.text = result.title;
+        }
+
+        String desc = result.description;
+        if (dims != null && !desc.contains('[Dimensi:')) {
+          desc = '$desc\n\n[Dimensi: ${_lengthController.text} × ${_widthController.text} × ${_heightController.text} cm]';
+        }
+        _descController.text = desc;
+
         if (AppConstants.categories.contains(result.suggestedCategory)) {
           _selectedCategory = result.suggestedCategory;
         }
+
+        if (result.estimatedPrice != null && result.estimatedPrice! > 0 && !_isFree && _priceController.text.isEmpty) {
+          _priceController.text = result.estimatedPrice.toString();
+        }
+
         _isAiGenerating = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✨ Draf deskripsi berhasil disusun dan kategori disarankan: $_selectedCategory!'),
+          content: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('✨ AI berhasil menyinkronkan deskripsi & kategori (${result.suggestedCategory}) sesuai foto iklan!'),
+              ),
+            ],
+          ),
           backgroundColor: AppColors.primary,
         ),
       );
-    } catch (_) {
-      setState(() => _isAiGenerating = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isAiGenerating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Kendala saat menyusun AI: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -143,6 +357,12 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
           maxHeight: 1200,
         );
         if (pickedFiles.isNotEmpty) {
+          for (final file in pickedFiles) {
+            try {
+              final bytes = await file.readAsBytes();
+              _photoBytesCache[file.path] = bytes;
+            } catch (_) {}
+          }
           setState(() {
             for (final file in pickedFiles) {
               if (!_photos.contains(file.path)) {
@@ -159,6 +379,10 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
           maxHeight: 1200,
         );
         if (pickedFile != null) {
+          try {
+            final bytes = await pickedFile.readAsBytes();
+            _photoBytesCache[pickedFile.path] = bytes;
+          } catch (_) {}
           setState(() {
             if (!_photos.contains(pickedFile.path)) {
               _photos.add(pickedFile.path);
@@ -172,8 +396,17 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
   }
 
   ImageProvider _getImageProvider(String path) {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
+    if (_photoBytesCache.containsKey(path)) {
+      return MemoryImage(_photoBytesCache[path]!);
+    }
+    if (path.startsWith('http://') ||
+        path.startsWith('https://') ||
+        path.startsWith('blob:') ||
+        kIsWeb) {
       return NetworkImage(path);
+    }
+    if (path.startsWith('assets/')) {
+      return AssetImage(path);
     }
     return FileImage(File(path));
   }
@@ -324,10 +557,25 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
 
     final price = _isFree ? 0 : int.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9]'), ''));
 
+    var descriptionText = _descController.text.trim();
+    if (_lengthController.text.trim().isNotEmpty &&
+        _widthController.text.trim().isNotEmpty &&
+        _heightController.text.trim().isNotEmpty) {
+      final p = _lengthController.text.trim();
+      final l = _widthController.text.trim();
+      final t = _heightController.text.trim();
+      final dimTag = '[Dimensi: $p × $l × $t cm]';
+      if (!descriptionText.contains('[Dimensi:')) {
+        descriptionText = '$descriptionText\n\n$dimTag';
+      } else {
+        descriptionText = descriptionText.replaceAll(RegExp(r'\[Dimensi:.*?\]'), dimTag);
+      }
+    }
+
     if (widget.listingToEdit != null) {
       final updated = widget.listingToEdit!.copyWith(
         title: _titleController.text.trim(),
-        description: _descController.text.trim(),
+        description: descriptionText,
         categoryName: _selectedCategory,
         price: price,
         condition: _selectedCondition,
@@ -341,7 +589,7 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
         categoryId: 'cat_${_selectedCategory.toLowerCase().replaceAll(' ', '_')}',
         categoryName: _selectedCategory,
         title: _titleController.text.trim(),
-        description: _descController.text.trim(),
+        description: descriptionText,
         price: price,
         condition: _selectedCondition,
         locationName: _locationController.text.trim(),
@@ -712,18 +960,68 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                             ],
                           ),
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.settings_suggest_rounded, color: AppColors.primaryDark, size: 22),
+                          tooltip: 'Atur Gemini API Key',
+                          onPressed: _showAiApiKeyDialog,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Cukup masukkan judul singkat atau foto, AI kami akan otomatis menyusun deskripsi santun, memilih kategori tepat, dan menakar harga wajar!',
+                      'AI kami akan otomatis menyinkronkan deskripsi santun, memilih kategori tepat, dan menakar harga wajar dari foto iklan barang Anda!',
                       style: TextStyle(
                         fontSize: 11.5,
                         color: AppColors.textSecondary,
                         height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
+
+                    // Status Foto Iklan
+                    if (_photos.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD7EBD9),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFBEDFBF)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_outline_rounded, size: 15, color: Color(0xFF1E5E2B)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Foto iklan terpasang (${_photos.length} foto): AI siap menyinkronkan judul, deskripsi & kategori!',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF1E5E2B)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6.5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 15, color: AppColors.textSecondary),
+                            SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '💡 Unggah foto barang di atas agar AI otomatis mengenali barang dan menyinkronkan iklan.',
+                                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
 
                     // Preset Cepat Row
                     Row(
@@ -738,7 +1036,7 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               children: [
-                                _buildQuickPresetChip('✨ Barang Bekas Kos', () {
+                                _buildQuickPresetChip('✨ Barang Kos', () {
                                   _titleController.text = 'Meja Belajar Kayu Minimalis';
                                   _handleAiHelp();
                                 }),
@@ -777,7 +1075,9 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                             ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : const Icon(Icons.auto_awesome, size: 16),
                         label: Text(
-                          _isAiGenerating ? 'Menyusun...' : 'Buat Deskripsi Otomatis dengan AI',
+                          _isAiGenerating
+                              ? 'Menyinkronkan dari foto...'
+                              : (_photos.isNotEmpty ? '✨ Sinkronkan Deskripsi & Kategori dari Foto' : 'Buat Deskripsi Otomatis dengan AI'),
                           style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -896,6 +1196,11 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                   ),
                 ),
               ),
+
+              const SizedBox(height: 16),
+
+              // Bagian Ukuran Barang (Dimensi & Sensor Kamera)
+              _buildDimensionsSection(),
 
               const SizedBox(height: 16),
 
@@ -1280,6 +1585,319 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
               color: isSelected ? Colors.white : AppColors.textPrimary,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Bagian Ukuran Barang (Dimensi & Integrasi Sensor Pengukur) ──────────────
+
+  Future<void> _openMeasurementTool() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ItemMeasurementScreen(isSelectingForListing: true),
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        final p = (result['length'] as num?)?.toDouble() ?? 0.0;
+        final l = (result['width'] as num?)?.toDouble() ?? 0.0;
+        final t = (result['height'] as num?)?.toDouble() ?? 0.0;
+
+        if (p > 0) _lengthController.text = p.round().toString();
+        if (l > 0) _widthController.text = l.round().toString();
+        if (t > 0) _heightController.text = t.round().toString();
+        _measuredWithSensor = true;
+
+        final imgPath = result['imagePath'] as String?;
+        if (imgPath != null && imgPath.isNotEmpty && !_photos.contains(imgPath)) {
+          _photos.insert(0, imgPath);
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('Ukuran dari sensor kamera berhasil diterapkan!'),
+            ],
+          ),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Widget _buildDimensionsSection() {
+    final p = double.tryParse(_lengthController.text) ?? 0.0;
+    final l = double.tryParse(_widthController.text) ?? 0.0;
+    final t = double.tryParse(_heightController.text) ?? 0.0;
+    final hasDimensions = p > 0 && l > 0 && t > 0;
+    final volumeLiter = (p * l * t) / 1000.0;
+
+    String vehicleRecommendation;
+    Color vehicleColor;
+    IconData vehicleIcon;
+
+    final longest = math.max(p, math.max(l, t));
+    if (longest <= 60 && volumeLiter <= 50) {
+      vehicleRecommendation = 'Muat Sepeda Motor (Tas / Bagasi Depan)';
+      vehicleColor = const Color(0xFF22C55E);
+      vehicleIcon = Icons.two_wheeler_rounded;
+    } else if (longest <= 130 && volumeLiter <= 350) {
+      vehicleRecommendation = 'Muat Bagasi Mobil MPV / City Car';
+      vehicleColor = const Color(0xFF3B82F6);
+      vehicleIcon = Icons.directions_car_rounded;
+    } else {
+      vehicleRecommendation = 'Disarankan Mobil Pick-up / Van Bak';
+      vehicleColor = const Color(0xFFD97706);
+      vehicleIcon = Icons.local_shipping_rounded;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _measuredWithSensor ? AppColors.primaryLight : AppColors.border,
+          width: _measuredWithSensor ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Ukuran Barang (Dimensi)',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                decoration: BoxDecoration(
+                  color: _measuredWithSensor ? AppColors.primarySurface : const Color(0xFFF3EFE9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _measuredWithSensor ? AppColors.primary : AppColors.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _measuredWithSensor ? Icons.verified_rounded : Icons.straighten_rounded,
+                      size: 11,
+                      color: _measuredWithSensor ? AppColors.primaryDark : AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _measuredWithSensor ? 'Terukur via Sensor' : 'Opsional',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: _measuredWithSensor ? AppColors.primaryDark : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Calon pengambil butuh tahu ukuran agar bisa menyiapkan kendaraan angkut yang pas.',
+            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, height: 1.35),
+          ),
+          const SizedBox(height: 12),
+
+          // Banner Button: Ukur Otomatis dengan Kamera / Sensor
+          InkWell(
+            onTap: _openMeasurementTool,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE8F3EA), Color(0xFFF3F9F4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFC7E2CC)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF27382B),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.camera_enhance_rounded, color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ukur dengan Sensor Kamera',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1E3524)),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Gunakan patokan KTP/uang rupiah untuk ukur otomatis',
+                          style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF27382B)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // 3 Inputs (Panjang, Lebar, Tinggi)
+          Row(
+            children: [
+              Expanded(child: _buildDimensionInput('Panjang', _lengthController)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildDimensionInput('Lebar', _widthController)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildDimensionInput('Tinggi', _heightController)),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Volume & Vehicle Recommendation Preview
+          if (hasDimensions) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: vehicleColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: vehicleColor.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Icon(vehicleIcon, color: vehicleColor, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Volume: ${volumeLiter.toStringAsFixed(1)} Liter • $vehicleRecommendation',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: vehicleColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          // Quick Preset Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                const Text('Preset: ', style: TextStyle(fontSize: 10.5, color: AppColors.textTertiary, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 4),
+                _buildDimensionPresetChip('Meja', 100, 50, 75),
+                const SizedBox(width: 6),
+                _buildDimensionPresetChip('Kursi', 55, 55, 95),
+                const SizedBox(width: 6),
+                _buildDimensionPresetChip('Lemari', 80, 50, 180),
+                const SizedBox(width: 6),
+                _buildDimensionPresetChip('Rak', 60, 30, 120),
+                const SizedBox(width: 6),
+                _buildDimensionPresetChip('Sofa', 140, 75, 80),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDimensionInput(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label (cm)',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFBF9F5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            decoration: const InputDecoration(
+              hintText: '0',
+              hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              border: InputBorder.none,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDimensionPresetChip(String name, int p, int l, int t) {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _lengthController.text = p.toString();
+          _widthController.text = l.toString();
+          _heightController.text = t.toString();
+          _measuredWithSensor = false;
+        });
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3EFE9),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Text(
+          '$name ($p×$l×$t)',
+          style: const TextStyle(fontSize: 10.5, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
         ),
       ),
     );

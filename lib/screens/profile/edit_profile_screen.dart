@@ -1,6 +1,6 @@
 
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
@@ -8,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
@@ -62,40 +61,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-  Future<void> _pickPhoto() async {
+  Future<void> _pickPhoto([ImageSource source = ImageSource.gallery]) async {
     if (_isPickingPhoto) return;
 
     setState(() => _isPickingPhoto = true);
 
     try {
       final XFile? selected = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
+        source: source,
         imageQuality: 85,
         maxWidth: 1200,
       );
 
       if (selected == null || !mounted) return;
 
-      final appDirectory = await getApplicationSupportDirectory();
-      final photoDirectory = Directory(
-        p.join(appDirectory.path, 'profile_photos'),
-      );
+      String finalPath;
+      if (kIsWeb) {
+        finalPath = selected.path;
+      } else {
+        final appDirectory = await getApplicationSupportDirectory();
+        final photoDirectory = Directory(
+          p.join(appDirectory.path, 'profile_photos'),
+        );
 
-      if (!await photoDirectory.exists()) {
-        await photoDirectory.create(recursive: true);
+        if (!await photoDirectory.exists()) {
+          await photoDirectory.create(recursive: true);
+        }
+
+        final ext = p.extension(selected.path).isEmpty ? '.jpg' : p.extension(selected.path);
+        final savedPath = p.join(
+          photoDirectory.path,
+          'profile_${DateTime.now().microsecondsSinceEpoch}$ext',
+        );
+
+        await File(selected.path).copy(savedPath);
+        finalPath = savedPath;
       }
-
-      final extension = p.extension(selected.path);
-      final savedPath = p.join(
-        photoDirectory.path,
-        'profile_${DateTime.now().microsecondsSinceEpoch}$extension',
-      );
-
-      await File(selected.path).copy(savedPath);
 
       if (!mounted) return;
 
-      setState(() => _photoPath = savedPath);
+      setState(() => _photoPath = finalPath);
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto profil baru dipilih. Klik "Simpan Profil" untuk menerapkan.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
 
@@ -109,28 +123,139 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  void _removePhoto() {
+    setState(() => _photoPath = null);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Foto profil dihapus. Klik "Simpan Profil" untuk menerapkan.'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showPhotoOptions() {
+    final hasPhoto = _photoPath != null && _photoPath!.trim().isNotEmpty;
+
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Text(
+                    'Foto Profil',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.camera_alt_outlined, color: AppColors.primary),
+                  ),
+                  title: const Text('Ambil Foto dari Kamera', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _pickPhoto(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
+                  ),
+                  title: const Text('Pilih dari Galeri', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _pickPhoto(ImageSource.gallery);
+                  },
+                ),
+                if (hasPhoto)
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                    ),
+                    title: const Text(
+                      'Hapus Foto Profil',
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _removePhoto();
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildAvatar() {
-    final path = (_photoPath == null || _photoPath!.isEmpty)
-        ? AppConstants.defaultProfilePhotoUrl
-        : _photoPath;
     ImageProvider? imageProvider;
 
-    if (path != null && path.isNotEmpty) {
-      if (path.startsWith('http://') || path.startsWith('https://')) {
+    if (_photoPath != null && _photoPath!.trim().isNotEmpty) {
+      final path = _photoPath!.trim();
+      if (path.startsWith('http://') ||
+          path.startsWith('https://') ||
+          path.startsWith('blob:') ||
+          kIsWeb) {
         imageProvider = NetworkImage(path);
-      } else if (File(path).existsSync()) {
+      } else if (path.startsWith('assets/')) {
+        imageProvider = AssetImage(path);
+      } else if (!kIsWeb && File(path).existsSync()) {
         imageProvider = FileImage(File(path));
       }
     }
 
     return CircleAvatar(
-      radius: 46,
+      radius: 48,
       backgroundColor: AppColors.primarySurface,
       backgroundImage: imageProvider,
       child: imageProvider == null
           ? const Icon(
               Icons.person,
-              size: 50,
+              size: 52,
               color: AppColors.primary,
             )
           : null,
@@ -206,37 +331,113 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Column(
               children: [
                 Center(
-                  child: Stack(
+                  child: Column(
                     children: [
-                      _buildAvatar(),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Material(
-                          color: AppColors.primary,
-                          shape: const CircleBorder(),
-                          child: InkWell(
-                            onTap: _isPickingPhoto ? null : _pickPhoto,
-                            customBorder: const CircleBorder(),
-                            child: Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: _isPickingPhoto
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.camera_alt,
-                                      size: 16,
-                                      color: Colors.white,
-                                    ),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          GestureDetector(
+                            onTap: _isPickingPhoto ? null : _showPhotoOptions,
+                            child: _buildAvatar(),
+                          ),
+
+                          // Camera button (Bottom-right)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Tooltip(
+                              message: 'Ubah foto profil',
+                              child: Material(
+                                color: AppColors.primary,
+                                shape: const CircleBorder(),
+                                elevation: 2,
+                                child: InkWell(
+                                  onTap: _isPickingPhoto ? null : _showPhotoOptions,
+                                  customBorder: const CircleBorder(),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(9),
+                                    child: _isPickingPhoto
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.camera_alt,
+                                            size: 16,
+                                            color: Colors.white,
+                                          ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+
+                          // Delete button (Top-right, if photo exists)
+                          if (_photoPath != null && _photoPath!.trim().isNotEmpty)
+                            Positioned(
+                              top: -2,
+                              right: -2,
+                              child: Tooltip(
+                                message: 'Hapus foto',
+                                child: Material(
+                                  color: AppColors.error,
+                                  shape: const CircleBorder(),
+                                  elevation: 2,
+                                  child: InkWell(
+                                    onTap: _isPickingPhoto ? null : _removePhoto,
+                                    customBorder: const CircleBorder(),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6),
+                                      child: Icon(
+                                        Icons.close_rounded,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TextButton.icon(
+                            onPressed: _isPickingPhoto ? null : _showPhotoOptions,
+                            icon: const Icon(Icons.add_a_photo_outlined, size: 16, color: AppColors.primary),
+                            label: Text(
+                              _photoPath != null && _photoPath!.trim().isNotEmpty
+                                  ? 'Ganti Foto'
+                                  : 'Tambah Foto',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          if (_photoPath != null && _photoPath!.trim().isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: _isPickingPhoto ? null : _removePhoto,
+                              icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.error),
+                              label: const Text(
+                                'Hapus Foto',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),

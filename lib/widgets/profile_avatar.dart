@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
-import '../core/constants/app_constants.dart';
 
 class ProfileAvatar extends StatelessWidget {
   final String? photo;
@@ -11,7 +10,11 @@ class ProfileAvatar extends StatelessWidget {
 
   const ProfileAvatar({super.key, this.photo, this.radius = 30});
 
-  bool _isUrl(String v) => v.startsWith('http://') || v.startsWith('https://');
+  bool _isUrl(String v) =>
+      v.startsWith('http://') ||
+      v.startsWith('https://') ||
+      v.startsWith('blob:') ||
+      kIsWeb;
 
   @override
   Widget build(BuildContext context) {
@@ -22,44 +25,57 @@ class ProfileAvatar extends StatelessWidget {
       color: AppColors.primary,
     );
 
-    // Pilih sumber foto: URL -> file lokal yang masih ada -> URL default
-    String source = AppConstants.defaultProfilePhotoUrl;
-    if (photo != null && photo!.isNotEmpty) {
-      if (_isUrl(photo!)) {
-        source = photo!;
-      } else if (!kIsWeb && File(photo!).existsSync()) {
-        source = photo!;
-      }
+    if (photo == null || photo!.trim().isEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: AppColors.primarySurface,
+        child: placeholder,
+      );
     }
 
-    final Widget image = _isUrl(source)
-        ? Image.network(
-            source,
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return const Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              );
-            },
-            errorBuilder: (context, error, stack) {
-              debugPrint('Foto profil gagal dimuat dari $source -> $error');
-              return placeholder;
-            },
-          )
-        : Image.file(
-            File(source),
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stack) => placeholder,
+    final source = photo!.trim();
+    Widget image;
+
+    if (source.startsWith('assets/')) {
+      image = Image.asset(
+        source,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => placeholder,
+      );
+    } else if (_isUrl(source)) {
+      image = Image.network(
+        source,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           );
+        },
+        errorBuilder: (context, error, stack) {
+          debugPrint('Foto profil gagal dimuat dari $source -> $error');
+          return placeholder;
+        },
+      );
+    } else if (!kIsWeb && File(source).existsSync()) {
+      image = Image.file(
+        File(source),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => placeholder,
+      );
+    } else {
+      image = placeholder;
+    }
 
     return CircleAvatar(
       radius: radius,

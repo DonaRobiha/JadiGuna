@@ -22,9 +22,14 @@ class CompassScreen extends StatefulWidget {
 class _CompassScreenState extends State<CompassScreen> {
   final CompassService _compassService = CompassService();
 
+  CompassReading? _reading;
   double _deviceHeading = 0.0;
   double _unwrappedHeading = 0.0;
   double _lastRawHeading = 0.0;
+  bool _hasFirstReading = false;
+
+  // Toggle True North vs Magnetic North
+  bool _useTrueNorth = false;
 
   double _targetBearing = 0.0;
   double _distanceMeters = 0.0;
@@ -48,36 +53,52 @@ class _CompassScreenState extends State<CompassScreen> {
       final position = await LocationService.instance.getCurrentLocation();
       _currentPosition = position;
 
-      if (position != null && _hasValidDestination) {
-        _distanceMeters = LocationHelper.calculateDistanceInMeters(
-          position.latitude,
-          position.longitude,
-          widget.listing!.latitude!,
-          widget.listing!.longitude!,
-        );
-        _targetBearing = LocationHelper.calculateBearing(
-          position.latitude,
-          position.longitude,
-          widget.listing!.latitude!,
-          widget.listing!.longitude!,
-        );
+      if (position != null) {
+        _compassService.updateLocation(position.latitude, position.longitude);
+
+        if (_hasValidDestination) {
+          _distanceMeters = LocationHelper.calculateDistanceInMeters(
+            position.latitude,
+            position.longitude,
+            widget.listing!.latitude!,
+            widget.listing!.longitude!,
+          );
+          _targetBearing = LocationHelper.calculateBearing(
+            position.latitude,
+            position.longitude,
+            widget.listing!.latitude!,
+            widget.listing!.longitude!,
+          );
+        }
       }
     } catch (e) {
       _locationError = 'Tidak dapat mendeteksi lokasi: $e';
     }
 
     _compassService.startListening(
-      onUpdate: (heading) {
+      userLatitude: _currentPosition?.latitude,
+      userLongitude: _currentPosition?.longitude,
+      onReadingUpdate: (reading) {
         if (!mounted) return;
-        setState(() {
-          // Continuous unwrap to guarantee butter-smooth rotation without 360-to-0 jumping
-          double diff = heading - _lastRawHeading;
-          if (diff > 180) diff -= 360;
-          if (diff < -180) diff += 360;
+        final activeHeading = _useTrueNorth ? reading.trueHeading : reading.heading;
 
-          _unwrappedHeading += diff;
-          _lastRawHeading = heading;
-          _deviceHeading = heading;
+        setState(() {
+          _reading = reading;
+          if (!_hasFirstReading) {
+            _unwrappedHeading = activeHeading;
+            _lastRawHeading = activeHeading;
+            _deviceHeading = activeHeading;
+            _hasFirstReading = true;
+          } else {
+            // Continuous unwrap to guarantee butter-smooth rotation without 360-to-0 jumping
+            double diff = activeHeading - _lastRawHeading;
+            if (diff > 180.0) diff -= 360.0;
+            if (diff < -180.0) diff += 360.0;
+
+            _unwrappedHeading += diff;
+            _lastRawHeading = activeHeading;
+            _deviceHeading = activeHeading;
+          }
         });
       },
     );
@@ -91,6 +112,35 @@ class _CompassScreenState extends State<CompassScreen> {
   void dispose() {
     _compassService.stopListening();
     super.dispose();
+  }
+
+  void _toggleTrueNorth() {
+    setState(() {
+      _useTrueNorth = !_useTrueNorth;
+      if (_reading != null) {
+        final newHeading = _useTrueNorth ? _reading!.trueHeading : _reading!.heading;
+        double diff = newHeading - _lastRawHeading;
+        if (diff > 180.0) diff -= 360.0;
+        if (diff < -180.0) diff += 360.0;
+        _unwrappedHeading += diff;
+        _lastRawHeading = newHeading;
+        _deviceHeading = newHeading;
+      }
+    });
+
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _useTrueNorth
+              ? 'Mode: Utara Sejati (Geografis) Aktif • Deklinasi: ${_reading?.declination.toStringAsFixed(1) ?? "0.0"}°'
+              : 'Mode: Utara Magnetik (Sensor Fisik) Aktif',
+        ),
+        duration: const Duration(seconds: 2),
+        backgroundColor: const Color(0xFF1E2820),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _openGoogleMapsRoute() async {
@@ -138,6 +188,147 @@ class _CompassScreenState extends State<CompassScreen> {
     }
   }
 
+  void _showCalibrationGuide() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1D241F),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final field = _reading?.fieldStrength ?? 42.0;
+        final accuracy = _reading?.accuracy ?? CompassAccuracy.high;
+        final accuracyLabel = accuracy == CompassAccuracy.high
+            ? 'Optimal / Tinggi'
+            : (accuracy == CompassAccuracy.medium ? 'Cukup Baik' : 'Perlu Kalibrasi');
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.tune_rounded, color: Color(0xFF22C55E), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Kalibrasi & Akurasi Kompas',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          'Petunjuk akurasi sensor magnetik perangkat',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: Column(
+                  children: [
+                    _buildMetricRow('Kekuatan Medan Magnet', '${field.toStringAsFixed(1)} µT (Normal: 25 - 65 µT)'),
+                    const Divider(height: 16, color: Colors.white12),
+                    _buildMetricRow('Status Kalibrasi', accuracyLabel),
+                    const Divider(height: 16, color: Colors.white12),
+                    _buildMetricRow('Kemiringan Pitch / Roll', '${_reading?.pitch.toStringAsFixed(1) ?? "0.0"}° / ${_reading?.roll.toStringAsFixed(1) ?? "0.0"}°'),
+                    const Divider(height: 16, color: Colors.white12),
+                    _buildMetricRow('Deklinasi Magnetik', '${(_reading?.declination ?? 0) >= 0 ? "+" : ""}${_reading?.declination.toStringAsFixed(1) ?? "0.0"}°'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.all_inclusive_rounded, color: Color(0xFF86EFAC), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Cara Kalibrasi: Gerakkan ponsel Anda di udara membentuk pola angka 8 (delapan) sebanyak 2-3 kali secara perlahan. Jauhkan dari benda berbahan logam tebal atau casing bermagnet.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 12.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF22C55E),
+                    foregroundColor: const Color(0xFF0F291B),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMetricRow(String label, String value) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+      ],
+    );
+  }
+
   String _formatDistance(double meters) {
     if (meters < 1000) {
       return '${meters.round()} m';
@@ -154,6 +345,10 @@ class _CompassScreenState extends State<CompassScreen> {
     final directionInstruction = isNavigating
         ? LocationHelper.getRelativeDirectionInstruction(_targetBearing, _deviceHeading)
         : null;
+
+    final isLevel = _reading?.isLevel ?? true;
+    final pitch = _reading?.pitch ?? 0.0;
+    final roll = _reading?.roll ?? 0.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFF161C17), // Deep luxury dark forest background
@@ -177,7 +372,7 @@ class _CompassScreenState extends State<CompassScreen> {
             Text(
               widget.listing != null
                   ? (widget.listing!.title)
-                  : 'Sensor Magnetometer Perangkat',
+                  : (_useTrueNorth ? 'Utara Sejati (Koreksi Deklinasi)' : 'Utara Magnetik (Sensor Fisik)'),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.65),
                 fontSize: 11,
@@ -189,6 +384,22 @@ class _CompassScreenState extends State<CompassScreen> {
           ],
         ),
         actions: [
+          // True North toggle button
+          IconButton(
+            onPressed: _toggleTrueNorth,
+            tooltip: _useTrueNorth ? 'Beralih ke Utara Magnetik' : 'Beralih ke Utara Sejati',
+            icon: Icon(
+              _useTrueNorth ? Icons.public_rounded : Icons.explore_outlined,
+              color: _useTrueNorth ? const Color(0xFF34D399) : Colors.white70,
+              size: 22,
+            ),
+          ),
+          // Calibration info button
+          IconButton(
+            onPressed: _showCalibrationGuide,
+            tooltip: 'Kalibrasi & Akurasi Kompas',
+            icon: const Icon(Icons.tune_rounded, color: Colors.white70, size: 22),
+          ),
           if (_hasValidDestination)
             IconButton(
               onPressed: _openGoogleMapsRoute,
@@ -208,12 +419,12 @@ class _CompassScreenState extends State<CompassScreen> {
                   final isCompact = constraints.maxHeight < 680;
                   final dialSize = math.min(
                     280.0,
-                    math.min(constraints.maxWidth * 0.72, constraints.maxHeight * 0.40),
+                    math.min(constraints.maxWidth * 0.72, constraints.maxHeight * 0.38),
                   ).clamp(160.0, 280.0);
 
                   return SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                     child: Column(
                       children: [
                         // 1. Heading Degree & Cardinal Direction Badge
@@ -223,7 +434,7 @@ class _CompassScreenState extends State<CompassScreen> {
                             Text(
                               '${_deviceHeading.round()}°',
                               style: TextStyle(
-                                fontSize: isCompact ? 44 : 56,
+                                fontSize: isCompact ? 44 : 54,
                                 fontWeight: FontWeight.w300,
                                 color: Colors.white,
                                 letterSpacing: -2,
@@ -231,47 +442,131 @@ class _CompassScreenState extends State<CompassScreen> {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.12),
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                // Cardinal Direction badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.12),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 7,
+                                        height: 7,
+                                        decoration: BoxDecoration(
+                                          color: _compassService.hasMagnetometer
+                                              ? const Color(0xFF22C55E)
+                                              : const Color(0xFFEAB308),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        LocationHelper.getCardinalDirection(_deviceHeading).toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 7,
-                                    height: 7,
+                                // True / Magnetic North toggle chip
+                                InkWell(
+                                  onTap: _toggleTrueNorth,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: _compassService.hasGyroscope
-                                          ? const Color(0xFF22C55E)
-                                          : const Color(0xFFEAB308),
-                                      shape: BoxShape.circle,
+                                      color: _useTrueNorth
+                                          ? const Color(0xFF22C55E).withValues(alpha: 0.2)
+                                          : Colors.white.withValues(alpha: 0.06),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: _useTrueNorth
+                                            ? const Color(0xFF22C55E).withValues(alpha: 0.4)
+                                            : Colors.white.withValues(alpha: 0.1),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          _useTrueNorth ? Icons.public : Icons.explore_outlined,
+                                          size: 13,
+                                          color: _useTrueNorth ? const Color(0xFF86EFAC) : Colors.white70,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          _useTrueNorth ? 'Utara Sejati' : 'Utara Magnet',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: _useTrueNorth ? const Color(0xFF86EFAC) : Colors.white70,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    LocationHelper.getCardinalDirection(_deviceHeading).toUpperCase(),
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
 
+                        // Level indicator pill
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: isLevel
+                                ? const Color(0xFF22C55E).withValues(alpha: 0.15)
+                                : Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isLevel
+                                  ? const Color(0xFF22C55E).withValues(alpha: 0.35)
+                                  : Colors.white.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isLevel ? Icons.check_circle_outline_rounded : Icons.screen_rotation_rounded,
+                                size: 12,
+                                color: isLevel ? const Color(0xFF22C55E) : Colors.white54,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                isLevel
+                                    ? 'Posisi Datar • Akurasi Optimal'
+                                    : 'Kemiringan: ${pitch.abs().round()}° • Tahan Datar',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: isLevel ? FontWeight.w700 : FontWeight.w500,
+                                  color: isLevel ? const Color(0xFF86EFAC) : Colors.white60,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                         // Direction instruction pill if navigating to destination
                         if (directionInstruction != null) ...[
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
@@ -306,9 +601,9 @@ class _CompassScreenState extends State<CompassScreen> {
                           ),
                         ],
 
-                        SizedBox(height: isCompact ? 12 : 18),
+                        SizedBox(height: isCompact ? 10 : 16),
 
-                        // 2. Ultra-Smooth Vector Compass Dial
+                        // 2. Ultra-Smooth Vector Compass Dial with Active Inclinometer Level
                         Center(
                           child: SizedBox(
                             width: dialSize,
@@ -346,11 +641,15 @@ class _CompassScreenState extends State<CompassScreen> {
                                       ),
                                     ),
 
-                                    // Vector Center Crosshair & Gimbal Circle
+                                    // Dynamic Level Bubble & Center Reticle Crosshairs
                                     IgnorePointer(
                                       child: CustomPaint(
                                         size: const Size(140, 140),
-                                        painter: _CenterCrosshairPainter(),
+                                        painter: _LevelBubbleReticlePainter(
+                                          pitch: pitch,
+                                          roll: roll,
+                                          isLevel: isLevel,
+                                        ),
                                       ),
                                     ),
 
@@ -382,7 +681,7 @@ class _CompassScreenState extends State<CompassScreen> {
                           ),
                         ),
 
-                        SizedBox(height: isCompact ? 14 : 20),
+                        SizedBox(height: isCompact ? 12 : 18),
 
                         // 3. Bottom Information Card (Destination Mode vs General Mode)
                         if (widget.listing != null)
@@ -548,6 +847,14 @@ class _CompassScreenState extends State<CompassScreen> {
 
   /// Card shown when opened standalone from Sensors Screen
   Widget _buildGeneralSensorInfoCard(bool isCompact) {
+    final accuracy = _reading?.accuracy ?? CompassAccuracy.high;
+    final accuracyText = accuracy == CompassAccuracy.high
+        ? 'Akurasi Tinggi'
+        : (accuracy == CompassAccuracy.medium ? 'Akurasi Sedang' : 'Perlu Kalibrasi');
+    final accuracyColor = accuracy == CompassAccuracy.high
+        ? const Color(0xFF22C55E)
+        : (accuracy == CompassAccuracy.medium ? const Color(0xFFEAB308) : const Color(0xFFEF4444));
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(isCompact ? 14 : 16),
@@ -580,27 +887,47 @@ class _CompassScreenState extends State<CompassScreen> {
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
-                  'Status Sensor Magnetik',
+                  'Sensor Magnetik & Orientasi',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: (_compassService.hasGyroscope ? const Color(0xFF22C55E) : const Color(0xFFEAB308))
-                      .withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _compassService.hasGyroscope ? 'Aktif' : 'Simulasi',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    color: _compassService.hasGyroscope ? const Color(0xFF86EFAC) : const Color(0xFFFDE047),
+              // Calibration status badge
+              InkWell(
+                onTap: _showCalibrationGuide,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: accuracyColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: accuracyColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        accuracyText,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: accuracyColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -615,11 +942,28 @@ class _CompassScreenState extends State<CompassScreen> {
               Expanded(
                 child: Text(
                   _currentPosition != null
-                      ? 'Koordinat: ${_currentPosition!.latitude.toStringAsFixed(4)}, ${_currentPosition!.longitude.toStringAsFixed(4)}'
+                      ? 'GPS: ${_currentPosition!.latitude.toStringAsFixed(4)}°, ${_currentPosition!.longitude.toStringAsFixed(4)}° • Elevasi: ${_currentPosition!.altitude.round()} m'
                       : (_locationError ?? 'Mendeteksi sinyal GPS perangkat...'),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.75),
                     fontSize: 11.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Declination & Sensor Telemetry
+          Row(
+            children: [
+              const Icon(Icons.radar_rounded, size: 14, color: Color(0xFF34D399)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Medan: ${_reading?.fieldStrength.toStringAsFixed(1) ?? "45.0"} µT • Deklinasi: ${(_reading?.declination ?? 0) >= 0 ? "+" : ""}${_reading?.declination.toStringAsFixed(1) ?? "0.0"}°',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 11,
                   ),
                 ),
               ),
@@ -633,7 +977,7 @@ class _CompassScreenState extends State<CompassScreen> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Tips: Gerakkan ponsel membentuk pola angka 8 jika kompas memerlukan kalibrasi. Buka dari Detail Barang untuk navigasi titik temu.',
+                  'Tips: Pegang ponsel secara datar (level) agar akurasi maksimal. Gerakkan membentuk angka 8 jika sensor memerlukan kalibrasi.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.65),
                     fontSize: 11,
@@ -651,7 +995,7 @@ class _CompassScreenState extends State<CompassScreen> {
 
 // ─── Custom Painters ────────────────────────────────────────────────────────
 
-/// Anti-aliased, pixel-perfect iOS Compass Dial Painter
+/// Anti-aliased, pixel-perfect iOS/Android Compass Dial Painter
 class _SmoothCompassDialPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -783,41 +1127,91 @@ class _SmoothCompassDialPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Vector Painter for Center Gimbal Crosshairs
-class _CenterCrosshairPainter extends CustomPainter {
+/// Dynamic Level Bubble Reticle Painter (Inclinometer / Gimbal Level)
+/// Moves based on pitch & roll. Snaps & turns emerald green when phone is held level.
+class _LevelBubbleReticlePainter extends CustomPainter {
+  final double pitch;
+  final double roll;
+  final bool isLevel;
+
+  _LevelBubbleReticlePainter({
+    required this.pitch,
+    required this.roll,
+    required this.isLevel,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    final circlePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.14)
+    // Outer reference ring
+    final outerRingPaint = Paint()
+      ..color = isLevel
+          ? const Color(0xFF22C55E).withValues(alpha: 0.45)
+          : Colors.white.withValues(alpha: 0.14)
       ..style = PaintingStyle.stroke
+      ..strokeWidth = isLevel ? 1.5 : 1.0
+      ..isAntiAlias = true;
+
+    canvas.drawCircle(center, radius, outerRingPaint);
+
+    // Fixed center reference crosshairs
+    final refCrossPaint = Paint()
+      ..color = isLevel
+          ? const Color(0xFF22C55E).withValues(alpha: 0.6)
+          : Colors.white.withValues(alpha: 0.22)
       ..strokeWidth = 1.0
       ..isAntiAlias = true;
 
-    canvas.drawCircle(center, radius, circlePaint);
+    canvas.drawLine(Offset(center.dx - 14, center.dy), Offset(center.dx - 6, center.dy), refCrossPaint);
+    canvas.drawLine(Offset(center.dx + 6, center.dy), Offset(center.dx + 14, center.dy), refCrossPaint);
+    canvas.drawLine(Offset(center.dx, center.dy - 14), Offset(center.dx, center.dy - 6), refCrossPaint);
+    canvas.drawLine(Offset(center.dx, center.dy + 6), Offset(center.dx, center.dy + 14), refCrossPaint);
 
-    final dotPaint = Paint()
-      ..color = Colors.white
+    // Dynamic bubble displacement based on pitch & roll
+    final maxOffset = radius * 0.72;
+    final bubbleDx = (-roll.clamp(-25.0, 25.0) / 25.0) * maxOffset;
+    final bubbleDy = (pitch.clamp(-25.0, 25.0) / 25.0) * maxOffset;
+    final bubblePos = Offset(center.dx + bubbleDx, center.dy + bubbleDy);
+
+    // Dynamic floating bubble ring
+    final bubbleRingPaint = Paint()
+      ..color = isLevel
+          ? const Color(0xFF22C55E)
+          : Colors.white.withValues(alpha: 0.65)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = isLevel ? 2.0 : 1.2
+      ..isAntiAlias = true;
+
+    canvas.drawCircle(bubblePos, 13.0, bubbleRingPaint);
+
+    // Center dot inside bubble
+    final bubbleDotPaint = Paint()
+      ..color = isLevel ? const Color(0xFF22C55E) : Colors.white
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    canvas.drawCircle(center, 5.0, dotPaint);
+    canvas.drawCircle(bubblePos, isLevel ? 5.0 : 3.5, bubbleDotPaint);
 
-    final crossPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.3)
+    // Subtle cross inside the bubble
+    final innerCrossPaint = Paint()
+      ..color = isLevel
+          ? const Color(0xFF22C55E).withValues(alpha: 0.8)
+          : Colors.white.withValues(alpha: 0.45)
       ..strokeWidth = 1.0
       ..isAntiAlias = true;
 
-    canvas.drawLine(Offset(center.dx - 12, center.dy), Offset(center.dx - 6, center.dy), crossPaint);
-    canvas.drawLine(Offset(center.dx + 6, center.dy), Offset(center.dx + 12, center.dy), crossPaint);
-    canvas.drawLine(Offset(center.dx, center.dy - 12), Offset(center.dx, center.dy - 6), crossPaint);
-    canvas.drawLine(Offset(center.dx, center.dy + 6), Offset(center.dx, center.dy + 12), crossPaint);
+    canvas.drawLine(Offset(bubblePos.dx - 5, bubblePos.dy), Offset(bubblePos.dx + 5, bubblePos.dy), innerCrossPaint);
+    canvas.drawLine(Offset(bubblePos.dx, bubblePos.dy - 5), Offset(bubblePos.dx, bubblePos.dy + 5), innerCrossPaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _LevelBubbleReticlePainter oldDelegate) {
+    return oldDelegate.pitch != pitch ||
+        oldDelegate.roll != roll ||
+        oldDelegate.isLevel != isLevel;
+  }
 }
 
 /// Vector Painter for Glowing Target Pointer Needle (Points towards listing location)

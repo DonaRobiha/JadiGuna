@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/listing_model.dart';
 import '../core/constants/app_colors.dart';
@@ -24,7 +25,10 @@ class ListingCard extends StatelessWidget {
   });
 
   Widget _buildListingImage(String imgPath) {
-    if (imgPath.startsWith('http://') || imgPath.startsWith('https://')) {
+    if (imgPath.startsWith('http://') ||
+        imgPath.startsWith('https://') ||
+        imgPath.startsWith('blob:') ||
+        kIsWeb) {
       return Image.network(
         imgPath,
         fit: BoxFit.cover,

@@ -215,12 +215,15 @@ class AuthService {
   }) async {
     if (_currentUser == null) throw Exception('Pengguna belum login');
 
+    final bool shouldClearPhoto = photoPath == null || photoPath.trim().isEmpty;
+
     final updated = _currentUser!.copyWith(
       name: name,
       bio: bio,
       city: city,
       phoneNumber: phone,
-      profilePhotoPath: photoPath,
+      profilePhotoPath: shouldClearPhoto ? null : photoPath,
+      clearPhoto: shouldClearPhoto,
       updatedAt: DateTime.now(),
     );
 

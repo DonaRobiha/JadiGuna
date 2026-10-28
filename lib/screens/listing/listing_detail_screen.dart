@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
@@ -27,13 +28,20 @@ class ListingDetailScreen extends StatefulWidget {
 class _ListingDetailScreenState extends State<ListingDetailScreen> {
   final PageController _imagePageController = PageController();
   int _activeImageIndex = 0;
-  bool _isBookmarked = false;
 
-  Widget _buildDetailImage(String imgUrl) {
-    if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
-      return Image.network(
+  Widget _buildDetailImage(String imgUrl, {BoxFit fit = BoxFit.cover}) {
+    if (imgUrl.trim().isEmpty) {
+      return Container(
+        color: AppColors.primarySurface,
+        child: const Center(
+          child: Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.primary),
+        ),
+      );
+    }
+    if (imgUrl.startsWith('assets/')) {
+      return Image.asset(
         imgUrl,
-        fit: BoxFit.cover,
+        fit: fit,
         errorBuilder: (ctx, err, _) => Container(
           color: AppColors.primarySurface,
           child: const Center(
@@ -42,10 +50,26 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         ),
       );
     }
-    if (imgUrl.startsWith('assets/')) {
-      return Image.asset(
+    if (imgUrl.startsWith('http://') ||
+        imgUrl.startsWith('https://') ||
+        imgUrl.startsWith('blob:') ||
+        kIsWeb) {
+      return Image.network(
         imgUrl,
-        fit: BoxFit.cover,
+        fit: fit,
+        loadingBuilder: (ctx, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            color: Colors.black12,
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+              ),
+            ),
+          );
+        },
         errorBuilder: (ctx, err, _) => Container(
           color: AppColors.primarySurface,
           child: const Center(
@@ -56,13 +80,201 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     }
     return Image.file(
       File(imgUrl),
-      fit: BoxFit.cover,
+      fit: fit,
       errorBuilder: (ctx, err, _) => Container(
         color: AppColors.primarySurface,
         child: const Center(
           child: Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.primary),
         ),
       ),
+    );
+  }
+
+  void _openFullscreenGallery(ListingModel listing, int initialIndex) {
+    final images = listing.images.isNotEmpty
+        ? listing.images
+        : ['https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800'];
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.95),
+      builder: (dialogCtx) {
+        int currentIndex = initialIndex.clamp(0, images.length - 1);
+        final pageController = PageController(initialPage: currentIndex);
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Scaffold(
+              backgroundColor: Colors.transparent,
+              body: SafeArea(
+                child: Stack(
+                  children: [
+                    // Zoomable Image Carousel with Double-Tap support
+                    PageView.builder(
+                      controller: pageController,
+                      itemCount: images.length,
+                      onPageChanged: (idx) {
+                        setDialogState(() => currentIndex = idx);
+                        if (mounted) {
+                          setState(() => _activeImageIndex = idx);
+                          if (_imagePageController.hasClients) {
+                            _imagePageController.jumpToPage(idx);
+                          }
+                        }
+                      },
+                      itemBuilder: (ctx, idx) {
+                        return _ZoomableImageItem(
+                          imageUrl: images[idx],
+                          imageBuilder: _buildDetailImage,
+                        );
+                      },
+                    ),
+
+                    // Top Bar: Close button + Title + Counter
+                    Positioned(
+                      top: 10,
+                      left: 16,
+                      right: 16,
+                      child: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => Navigator.pop(dialogCtx),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.6),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  listing.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'Foto ${currentIndex + 1} dari ${images.length}',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${currentIndex + 1}/${images.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Zoom Hint Pill
+                    Positioned(
+                      bottom: images.length > 1 ? 76 : 24,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.zoom_in_rounded, color: Colors.white70, size: 14),
+                              SizedBox(width: 5),
+                              Text(
+                                'Cubit atau ketuk 2x untuk perbesar',
+                                style: TextStyle(color: Colors.white70, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Bottom Thumbnail Preview Bar (if more than 1 image)
+                    if (images.length > 1)
+                      Positioned(
+                        bottom: 16,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: List.generate(images.length, (idx) {
+                                final isSelected = idx == currentIndex;
+                                return GestureDetector(
+                                  onTap: () {
+                                    pageController.animateToPage(
+                                      idx,
+                                      duration: const Duration(milliseconds: 300),
+                                      curve: Curves.easeInOut,
+                                    );
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isSelected ? AppColors.primary : Colors.white24,
+                                        width: isSelected ? 2.5 : 1,
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: _buildDetailImage(images[idx], fit: BoxFit.cover),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -419,30 +631,41 @@ const Text(
                           ),
                         ],
                       ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              listing.isFavorite ? Icons.favorite : Icons.favorite_border_rounded,
-                              color: listing.isFavorite ? AppColors.terracotta : AppColors.textPrimary,
-                              size: 22,
+                      IconButton(
+                        tooltip: listing.isFavorite ? 'Hapus dari Favorit' : 'Simpan ke Favorit',
+                        icon: Icon(
+                          listing.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          color: listing.isFavorite ? AppColors.terracotta : AppColors.textPrimary,
+                          size: 24,
+                        ),
+                        onPressed: () {
+                          final wasFavorite = listing.isFavorite;
+                          listingProvider.toggleFavorite(currentUserId, listing);
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  Icon(
+                                    wasFavorite ? Icons.favorite_border_rounded : Icons.favorite_rounded,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    wasFavorite
+                                        ? 'Barang dihapus dari daftar favorit.'
+                                        : 'Barang berhasil disimpan ke daftar favorit!',
+                                  ),
+                                ],
+                              ),
+                              backgroundColor: wasFavorite ? AppColors.textSecondary : AppColors.primary,
+                              duration: const Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
-                            onPressed: () {
-                              listingProvider.toggleFavorite(currentUserId, listing);
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              _isBookmarked ? Icons.bookmark : Icons.bookmark_border_rounded,
-                              color: AppColors.textPrimary,
-                              size: 22,
-                            ),
-                            onPressed: () {
-                              setState(() => _isBookmarked = !_isBookmarked);
-                            },
-                          ),
-                        ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -465,7 +688,10 @@ const Text(
                               final imgUrl = listing.images.isNotEmpty
                                   ? listing.images[index]
                                   : 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800';
-                              return _buildDetailImage(imgUrl);
+                              return GestureDetector(
+                                onTap: () => _openFullscreenGallery(listing, index),
+                                child: _buildDetailImage(imgUrl),
+                              );
                             },
                           ),
                         ),
@@ -523,16 +749,30 @@ const Text(
                         Positioned(
                           bottom: 14,
                           left: 14,
-                          child: Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.35),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.crop_free_rounded,
-                              size: 16,
-                              color: Colors.white,
+                          child: Tooltip(
+                            message: 'Tampilkan gambar penuh',
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _openFullscreenGallery(listing, _activeImageIndex),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.55),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.35),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.crop_free_rounded,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -761,15 +1001,27 @@ const Text(
                         ),
                         const SizedBox(height: 14),
 
-                        // 3 Dimension Boxes (Panjang | Lebar | Tinggi)
-                        Row(
-                          children: [
-                            _buildDimensionBox('PANJANG', '100 cm'),
-                            const SizedBox(width: 8),
-                            _buildDimensionBox('LEBAR', '50 cm'),
-                            const SizedBox(width: 8),
-                            _buildDimensionBox('TINGGI', '75 cm'),
-                          ],
+                        // 3 Dimension Boxes (Panjang | Lebar | Tinggi) - Parsed from listing or default
+                        Builder(
+                          builder: (context) {
+                            final dimMatch = RegExp(
+                              r'\[Dimensi:\s*(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)\s*cm\]',
+                              caseSensitive: false,
+                            ).firstMatch(listing.description);
+                            final pVal = dimMatch != null ? '${dimMatch.group(1)} cm' : '100 cm';
+                            final lVal = dimMatch != null ? '${dimMatch.group(2)} cm' : '50 cm';
+                            final tVal = dimMatch != null ? '${dimMatch.group(3)} cm' : '75 cm';
+
+                            return Row(
+                              children: [
+                                _buildDimensionBox('PANJANG', pVal),
+                                const SizedBox(width: 8),
+                                _buildDimensionBox('LEBAR', lVal),
+                                const SizedBox(width: 8),
+                                _buildDimensionBox('TINGGI', tVal),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
 
@@ -1479,6 +1731,59 @@ onPressed: () async {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ZoomableImageItem extends StatefulWidget {
+  final String imageUrl;
+  final Widget Function(String, {BoxFit fit}) imageBuilder;
+
+  const _ZoomableImageItem({
+    required this.imageUrl,
+    required this.imageBuilder,
+  });
+
+  @override
+  State<_ZoomableImageItem> createState() => _ZoomableImageItemState();
+}
+
+class _ZoomableImageItemState extends State<_ZoomableImageItem> {
+  final TransformationController _controller = TransformationController();
+  TapDownDetails? _doubleTapDetails;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onDoubleTap() {
+    if (_controller.value != Matrix4.identity()) {
+      _controller.value = Matrix4.identity();
+    } else {
+      final position = _doubleTapDetails?.localPosition ?? Offset.zero;
+      final m = Matrix4.identity();
+      m.setTranslationRaw(-position.dx * 1.5, -position.dy * 1.5, 0.0);
+      m.storage[0] = 2.5;
+      m.storage[5] = 2.5;
+      _controller.value = m;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onDoubleTapDown: (details) => _doubleTapDetails = details,
+      onDoubleTap: _onDoubleTap,
+      child: InteractiveViewer(
+        transformationController: _controller,
+        minScale: 0.8,
+        maxScale: 4.5,
+        child: Center(
+          child: widget.imageBuilder(widget.imageUrl, fit: BoxFit.contain),
+        ),
       ),
     );
   }
