@@ -300,7 +300,9 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
 
       if (!mounted) return;
       setState(() {
-        if (_titleController.text.trim().isEmpty || _titleController.text.trim() == 'Kursi Belajar Ergonomis Putar') {
+        if (_titleController.text.trim().isEmpty ||
+            _titleController.text.trim() == 'Kursi Belajar Ergonomis Putar' ||
+            (hasPhoto && result.fromLlm)) {
           _titleController.text = result.title;
         }
 
@@ -312,6 +314,11 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
 
         if (AppConstants.categories.contains(result.suggestedCategory)) {
           _selectedCategory = result.suggestedCategory;
+        }
+
+        if (result.suggestedCondition != null &&
+            AppConstants.conditions.contains(result.suggestedCondition)) {
+          _selectedCondition = result.suggestedCondition!;
         }
 
         if (result.estimatedPrice != null && result.estimatedPrice! > 0 && !_isFree && _priceController.text.isEmpty) {
@@ -328,11 +335,14 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
               const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('✨ AI berhasil menyinkronkan deskripsi & kategori (${result.suggestedCategory}) sesuai foto iklan!'),
+                child: Text(result.fromLlm
+                    ? '✨ AI Gemini Vision berhasil memindai: "${result.title}" (${result.suggestedCategory})'
+                    : '💡 AI Lokal menyinkronkan: "${result.title}" (${result.suggestedCategory})'),
               ),
             ],
           ),
           backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 3),
         ),
       );
     } catch (e) {

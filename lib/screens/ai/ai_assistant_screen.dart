@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../services/ai_service.dart';
@@ -16,14 +17,34 @@ class AiAssistantScreen extends StatefulWidget {
 
 class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final AiService _aiService = AiService();
-  final TextEditingController _titleController = TextEditingController(text: 'Meja Belajar Minimalis');
-  final TextEditingController _notesController = TextEditingController(text: 'Bahan kayu jati londo, ada laci samping, kokoh');
+  final ImagePicker _picker = ImagePicker();
+
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
   final TextEditingController _resultController = TextEditingController();
 
-  String _selectedCondition = 'Layak Pakai';
+  String? _selectedImagePath;
+  Uint8List? _selectedImageBytes;
+  String _selectedCondition = 'Sangat Baik';
   bool _isFree = false;
   bool _isLoading = false;
+  bool _isApiKeyConfigured = false;
   AiGenerationResult? _lastResult;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkApiKeyStatus();
+  }
+
+  Future<void> _checkApiKeyStatus() async {
+    final key = await AiService.getApiKey();
+    if (mounted) {
+      setState(() {
+        _isApiKeyConfigured = key != null && key.isNotEmpty;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -33,11 +54,60 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1280,
+        maxHeight: 1280,
+      );
+
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _selectedImagePath = picked.path;
+          _selectedImageBytes = bytes;
+        });
+
+        // Tampilkan konfirmasi dan tawarkan scan langsung
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.photo_camera_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Foto berhasil dimuat. Ketuk tombol di bawah untuk memindai dengan AI!'),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.primary,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengambil foto: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
   Future<void> _generateDraft() async {
     final title = _titleController.text.trim();
-    if (title.isEmpty) {
+    final hasPhoto = _selectedImageBytes != null && _selectedImageBytes!.isNotEmpty;
+
+    if (title.isEmpty && !hasPhoto) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Masukkan judul atau nama barang terlebih dahulu.'), backgroundColor: AppColors.warning),
+        const SnackBar(
+          content: Text('Unggah foto barang atau ketik nama barang terlebih dahulu agar AI dapat menganalisis.'),
+          backgroundColor: AppColors.warning,
+        ),
       );
       return;
     }
@@ -45,23 +115,47 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     setState(() => _isLoading = true);
     try {
       final res = await _aiService.generateAdDraft(
-        title: title,
+        title: title.isEmpty ? null : title,
         rawDetails: _notesController.text.trim(),
         condition: _selectedCondition,
         isFree: _isFree,
+        imageBytes: _selectedImageBytes,
+        imagePath: _selectedImagePath,
       );
 
       if (!mounted) return;
       setState(() {
         _lastResult = res;
+        _titleController.text = res.title;
         _resultController.text = res.description;
+        if (res.suggestedCondition != null &&
+            AppConstants.conditions.contains(res.suggestedCondition)) {
+          _selectedCondition = res.suggestedCondition!;
+        }
         _isLoading = false;
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(res.fromLlm
+                    ? '✨ AI Gemini Vision berhasil memindai: "${res.title}"'
+                    : '💡 AI berhasil menganalisis: "${res.title}"'),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.primary,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Terjadi kesalahan AI: $e'), backgroundColor: AppColors.error),
+        SnackBar(content: Text('Terjadi kendala AI: $e'), backgroundColor: AppColors.error),
       );
     }
   }
@@ -107,7 +201,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Masukkan Google Gemini API Key Anda untuk menghubungkan model AI LLM Gemini langsung.',
+              'Masukkan Google Gemini API Key Anda untuk mengaktifkan AI Vision Multimodal yang memindai foto barang secara akurat.',
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.4),
             ),
             const SizedBox(height: 14),
@@ -123,7 +217,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Jika dikosongkan, fitur AI tetap berjalan dalam mode cerdas offline bawaan.',
+              'Catatan: Jika dikosongkan, sistem tetap berjalan dalam mode analisis lokal.',
               style: TextStyle(fontSize: 11, color: AppColors.textTertiary, fontStyle: FontStyle.italic),
             ),
           ],
@@ -141,6 +235,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             ),
             onPressed: () async {
               await AiService.saveApiKey(controller.text.trim());
+              await _checkApiKeyStatus();
               if (ctx.mounted) {
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(ctx).showSnackBar(
@@ -158,16 +253,107 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     );
   }
 
+  Widget _buildPhotoPreview() {
+    if (_selectedImageBytes != null) {
+      return Stack(
+        alignment: Alignment.topRight,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.memory(
+              _selectedImageBytes!,
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Material(
+              color: Colors.black.withValues(alpha: 0.6),
+              shape: const CircleBorder(),
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                tooltip: 'Hapus Foto',
+                onPressed: () {
+                  setState(() {
+                    _selectedImagePath = null;
+                    _selectedImageBytes = null;
+                  });
+                },
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.textSecondary),
+          const SizedBox(height: 8),
+          const Text(
+            'Unggah Foto Barang untuk Pemindaian AI',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'AI Vision akan otomatis mengenali jenis barang, kategori, kondisi, dan harga wajar.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => _pickImage(ImageSource.camera),
+                icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                label: const Text('Kamera', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => _pickImage(ImageSource.gallery),
+                icon: const Icon(Icons.photo_library_rounded, size: 18),
+                label: const Text('Galeri', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Asisten AI / LLM Iklan'),
+        title: const Text('Asisten AI & Scan Barang'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_suggest_rounded),
-            tooltip: 'Atur Gemini API Key',
+            icon: Icon(
+              _isApiKeyConfigured ? Icons.vpn_key_rounded : Icons.key_off_rounded,
+              color: _isApiKeyConfigured ? Colors.green : Colors.amber.shade700,
+            ),
+            tooltip: _isApiKeyConfigured ? 'Gemini API Key Aktif' : 'Gemini API Key Belum Diisi',
             onPressed: _showAiApiKeyDialog,
           ),
         ],
@@ -177,7 +363,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // AI Info Banner
+            // Status Banner
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -188,19 +374,24 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 ),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 28),
-                  SizedBox(width: 12),
+                  const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 28),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('AI Copywriter & Kategori Pintar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
-                        SizedBox(height: 2),
+                        const Text(
+                          'AI Vision & Kurator Barang Pintar',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+                        ),
+                        const SizedBox(height: 2),
                         Text(
-                          'Membantu Anda menyusun deskripsi iklan yang informatif, menarik, dan menyarankan kategori yang tepat secara otomatis.',
-                          style: TextStyle(color: Colors.white, fontSize: 11, height: 1.4),
+                          _isApiKeyConfigured
+                              ? '✨ Google Gemini Vision aktif. Foto barang Anda dan AI akan mendeteksi nama, kategori, dan deskripsi secara akurat.'
+                              : '💡 Mode Offline aktif. Masukkan Kunci API Gemini pada ikon 🔑 untuk akurasi visual maksimal.',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, height: 1.4),
                         ),
                       ],
                     ),
@@ -221,19 +412,24 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Data Mentah Barang', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 12),
+                  const Text('1. Foto Barang (Pemindaian Visual)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
+                  _buildPhotoPreview(),
+                  const SizedBox(height: 18),
+
+                  const Text('2. Data Barang (Boleh Dikosongkan jika ada foto)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
                   CustomTextField(
                     controller: _titleController,
                     label: 'Judul / Nama Barang',
-                    hint: 'Contoh: Monitor PC LG 22 Inch',
+                    hint: 'Contoh: Sepatu Sneakers Ventela / Kipas Miyako',
                     prefixIcon: Icons.title_rounded,
                   ),
                   const SizedBox(height: 12),
                   CustomTextField(
                     controller: _notesController,
-                    label: 'Catatan Khusus / Poin Penting',
-                    hint: 'Kelengkapan kabel, alasan jual/diberikan, minus bila ada...',
+                    label: 'Catatan Khusus (Opsional)',
+                    hint: 'Minus, kelengkapan, alasan jual/diberikan...',
                     maxLines: 2,
                     prefixIcon: Icons.notes_rounded,
                   ),
@@ -244,31 +440,33 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Kondisi:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                            const Text('Kondisi Fisik:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                             const SizedBox(height: 4),
-DropdownButtonFormField<String>(
-  initialValue: AppConstants.conditions.contains(_selectedCondition)
-      ? _selectedCondition
-      : AppConstants.conditions.toSet().first,
-  isExpanded: true,
-  items: AppConstants.conditions.toSet().map((c) {
-    return DropdownMenuItem<String>(
-      value: c,
-      child: Text(
-        c,
-        style: const TextStyle(fontSize: 11),
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }).toList(),
-  onChanged: (v) {
-    if (v != null) {
-      setState(() {
-        _selectedCondition = v;
-      });
-    }
-  },
-),
+                            DropdownButtonFormField<String>(
+                              initialValue: AppConstants.conditions.contains(_selectedCondition)
+                                  ? _selectedCondition
+                                  : AppConstants.conditions.first,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              items: AppConstants.conditions.toSet().map((c) {
+                                return DropdownMenuItem<String>(
+                                  value: c,
+                                  child: Text(
+                                    c,
+                                    style: const TextStyle(fontSize: 11),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() => _selectedCondition = v);
+                                }
+                              },
+                            ),
                           ],
                         ),
                       ),
@@ -277,7 +475,7 @@ DropdownButtonFormField<String>(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Tipe Penawaran:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                            const Text('Jenis Penawaran:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                             const SizedBox(height: 4),
                             ChoiceChip(
                               label: Text(_isFree ? 'Gratis' : 'Dijual', style: const TextStyle(fontSize: 12)),
@@ -292,7 +490,9 @@ DropdownButtonFormField<String>(
                   ),
                   const SizedBox(height: 18),
                   CustomButton(
-                    text: 'Susun Draf Deskripsi dengan AI',
+                    text: _selectedImageBytes != null
+                        ? '🔍 Pindai Foto & Susun Iklan AI'
+                        : 'Susun Draf Deskripsi dengan AI',
                     icon: Icons.auto_awesome_rounded,
                     isLoading: _isLoading,
                     onPressed: _generateDraft,
@@ -318,7 +518,7 @@ DropdownButtonFormField<String>(
                       children: [
                         const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
                         const SizedBox(width: 8),
-                        const Text('Hasil Rekomendasi AI', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                        const Text('Hasil Pemindaian AI', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                         const Spacer(),
                         if (_lastResult != null)
                           Container(
@@ -334,7 +534,23 @@ DropdownButtonFormField<String>(
                           ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
+
+                    if (_lastResult != null && _lastResult!.estimatedPrice != null && !_isFree)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.monetization_on_outlined, size: 16, color: AppColors.terracotta),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Estimasi Harga Wajar: Rp ${_lastResult!.estimatedPrice}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.terracotta),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     TextField(
                       controller: _resultController,
                       maxLines: 8,
@@ -405,6 +621,7 @@ DropdownButtonFormField<String>(
                                     initialCategory: _lastResult?.suggestedCategory,
                                     initialCondition: _selectedCondition,
                                     initialIsFree: _isFree,
+                                    initialImagePath: _selectedImagePath,
                                   ),
                                 ),
                               );

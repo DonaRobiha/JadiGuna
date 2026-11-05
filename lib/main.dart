@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,9 +20,7 @@ void main() async {
   if (kIsWeb) {
     // Untuk Flutter Web di Edge atau browser lain.
     databaseFactory = databaseFactoryFfiWeb;
-  } else if (Platform.isWindows ||
-      Platform.isLinux ||
-      Platform.isMacOS) {
+  } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     // Untuk aplikasi desktop.
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -90,7 +89,8 @@ class _SafeWebMultiViewApp extends StatefulWidget {
   State<_SafeWebMultiViewApp> createState() => _SafeWebMultiViewAppState();
 }
 
-class _SafeWebMultiViewAppState extends State<_SafeWebMultiViewApp> with WidgetsBindingObserver {
+class _SafeWebMultiViewAppState extends State<_SafeWebMultiViewApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -111,13 +111,12 @@ class _SafeWebMultiViewAppState extends State<_SafeWebMultiViewApp> with Widgets
   @override
   Widget build(BuildContext context) {
     final dispatcher = WidgetsBinding.instance.platformDispatcher;
-    final view = dispatcher.implicitView ?? (dispatcher.views.isNotEmpty ? dispatcher.views.first : null);
+    final view =
+        dispatcher.implicitView ??
+        (dispatcher.views.isNotEmpty ? dispatcher.views.first : null);
     if (view == null) {
       return const SizedBox.shrink();
     }
-    return View(
-      view: view,
-      child: widget.child,
-    );
+    return View(view: view, child: widget.child);
   }
 }
