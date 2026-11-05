@@ -31,7 +31,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final convs = chatProvider.conversations;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Pesan & Diskusi'),
       ),

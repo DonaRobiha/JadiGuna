@@ -26,8 +26,14 @@ class ProfileScreen extends StatelessWidget {
     final listingProvider = Provider.of<ListingProvider>(context);
     final user = authProvider.user;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Profil & Akun'),
       ),
@@ -39,12 +45,12 @@ class ProfileScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: borderColor),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -64,12 +70,12 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
                           children: [
                             Text(
                               user?.name ?? 'Pengguna jadiGuna',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: textColor),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               user?.email ?? 'email@jadiguna.id',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: TextStyle(fontSize: 12, color: subTextColor),
                             ),
                             const SizedBox(height: 4),
                             Row(
@@ -97,7 +103,7 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Divider(height: 1),
+                  Divider(height: 1, color: borderColor),
                   const SizedBox(height: 12),
                   // Quick stats row
                   Row(
@@ -105,11 +111,11 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
                     children: [
                       _buildStatColumn('Iklan Saya', '${listingProvider.myListings.length}', () {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen()));
-                      }),
-                      Container(height: 24, width: 1, color: AppColors.divider),
-                      _buildStatColumn('Favorit', '${listingProvider.favorites.length}', null),
-                      Container(height: 24, width: 1, color: AppColors.divider),
-                      _buildStatColumn('Status', 'Terverifikasi', null),
+                      }, subTextColor),
+                      Container(height: 24, width: 1, color: borderColor),
+                      _buildStatColumn('Favorit', '${listingProvider.favorites.length}', null, subTextColor),
+                      Container(height: 24, width: 1, color: borderColor),
+                      _buildStatColumn('Status', 'Terverifikasi', null, subTextColor),
                     ],
                   ),
                 ],
@@ -118,12 +124,12 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
             const SizedBox(height: 20),
 
             // Fitur Tambahan Tugas Akhir (Special Features Section)
-            _buildSectionHeader('Fitur Tambahan Tugas Akhir'),
+            _buildSectionHeader('Fitur Tambahan Tugas Akhir', subTextColor),
             Material(
-              color: Colors.white,
+              color: cardBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.border),
+                side: BorderSide(color: borderColor),
               ),
               child: Column(
                 children: [
@@ -132,56 +138,68 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
                     iconColor: Colors.blueAccent,
                     title: 'Konversi Mata Uang',
                     subtitle: 'IDR, USD, JPY, EUR & kurs waktu nyata',
+                    textColor: textColor,
+                    subColor: subTextColor,
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const CurrencyConverterScreen()));
                     },
                   ),
-                  _buildDivider(),
+                  _buildDivider(borderColor),
                   _buildMenuItem(
                     icon: Icons.access_time_filled_rounded,
                     iconColor: Colors.orangeAccent,
                     title: 'Konversi Waktu & Zona',
                     subtitle: 'WIB, WITA, WIT, dan London (DST)',
+                    textColor: textColor,
+                    subColor: subTextColor,
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const TimeConverterScreen()));
                     },
                   ),
-                  _buildDivider(),
+                  _buildDivider(borderColor),
                   _buildMenuItem(
                     icon: Icons.sensors_rounded,
                     iconColor: Colors.purpleAccent,
                     title: 'Sensor Perangkat',
                     subtitle: 'Accelerometer (Shake) & Gyroscope (Tilt)',
+                    textColor: textColor,
+                    subColor: subTextColor,
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const SensorsScreen()));
                     },
                   ),
-                  _buildDivider(),
+                  _buildDivider(borderColor),
                   _buildMenuItem(
                     icon: Icons.sports_esports_rounded,
                     iconColor: AppColors.primary,
                     title: 'Mini Game: Pilah Barang',
                     subtitle: 'Game edukasi pengelompokan barang bekas',
+                    textColor: textColor,
+                    subColor: subTextColor,
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const PilahBarangGameScreen()));
                     },
                   ),
-                  _buildDivider(),
+                  _buildDivider(borderColor),
                   _buildMenuItem(
                     icon: Icons.history_rounded,
                     iconColor: Colors.teal,
                     title: 'Riwayat Aktivitas Barang',
                     subtitle: 'Pencatatan riwayat status barang yang aman & terverifikasi',
+                    textColor: textColor,
+                    subColor: subTextColor,
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()));
                     },
                   ),
-                  _buildDivider(),
+                  _buildDivider(borderColor),
                   _buildMenuItem(
                     icon: Icons.auto_awesome_rounded,
                     iconColor: Colors.amber,
                     title: 'Asisten AI / LLM',
                     subtitle: 'Generator draf deskripsi dan saran kategori iklan',
+                    textColor: textColor,
+                    subColor: subTextColor,
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const AiAssistantScreen()));
                     },
@@ -192,51 +210,58 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
             const SizedBox(height: 20),
 
             // Settings & Support
-            _buildSectionHeader('Pengaturan & Bantuan'),
+            _buildSectionHeader('Pengaturan & Bantuan', subTextColor),
             Material(
-              color: Colors.white,
+              color: cardBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.border),
+                side: BorderSide(color: borderColor),
               ),
               child: Column(
                 children: [
                   _buildMenuItem(
                     icon: Icons.settings_outlined,
-                    iconColor: AppColors.textPrimary,
+                    iconColor: textColor,
                     title: 'Pengaturan Aplikasi',
                     subtitle: 'Biometrik, notifikasi, dan tema',
+                    textColor: textColor,
+                    subColor: subTextColor,
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                     },
                   ),
-                  _buildDivider(),
+                  _buildDivider(borderColor),
                   _buildMenuItem(
                     icon: Icons.rate_review_outlined,
                     iconColor: AppColors.secondary,
-                                        title: 'Saran dan Kesan',
+                    title: 'Saran dan Kesan',
                     subtitle: 'Saran dan kesan mata kuliah Pemrograman Aplikasi Mobile',
+                    textColor: textColor,
+                    subColor: subTextColor,
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedbackScreen()));
                     },
                   ),
-                  _buildDivider(),
+                  _buildDivider(borderColor),
                   _buildMenuItem(
                     icon: Icons.help_outline_rounded,
                     iconColor: Colors.indigo,
                     title: 'Bantuan, Panduan & Privasi',
                     subtitle: 'FAQ transaksi aman, syarat dan ketentuan',
+                    textColor: textColor,
+                    subColor: subTextColor,
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpPrivacyScreen()));
                     },
                   ),
-                  _buildDivider(),
+                  _buildDivider(borderColor),
                   _buildMenuItem(
                     icon: Icons.logout_rounded,
                     iconColor: AppColors.error,
                     title: 'Keluar (Logout)',
                     subtitle: 'Akhiri sesi login saat ini',
                     textColor: AppColors.error,
+                    subColor: subTextColor,
                     onTap: () async {
                       final navigator = Navigator.of(context);
                       final confirm = await showDialog<bool>(
@@ -274,27 +299,27 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, [Color? color]) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
           title,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color ?? AppColors.textSecondary),
         ),
       ),
     );
   }
 
-  Widget _buildStatColumn(String label, String value, VoidCallback? onTap) {
+  Widget _buildStatColumn(String label, String value, VoidCallback? onTap, [Color? subColor]) {
     return InkWell(
       onTap: onTap,
       child: Column(
         children: [
-          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryLight)),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+          Text(label, style: TextStyle(fontSize: 11, color: subColor ?? AppColors.textSecondary)),
         ],
       ),
     );
@@ -307,6 +332,7 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
     required String subtitle,
     required VoidCallback onTap,
     Color? textColor,
+    Color? subColor,
   }) {
     return Material(
       color: Colors.transparent,
@@ -321,13 +347,13 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
           child: Icon(icon, color: iconColor, size: 20),
         ),
         title: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        subtitle: Text(subtitle, style: TextStyle(fontSize: 11, color: subColor ?? AppColors.textSecondary)),
         trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textTertiary),
       ),
     );
   }
 
-  Widget _buildDivider() {
-    return const Divider(height: 1, indent: 56);
+  Widget _buildDivider([Color? color]) {
+    return Divider(height: 1, indent: 56, color: color);
   }
 }

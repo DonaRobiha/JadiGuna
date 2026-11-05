@@ -12,6 +12,7 @@ import '../../models/listing_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
 import '../../services/ai_service.dart';
+import '../main_navigation_screen.dart';
 import '../sensors/item_measurement_screen.dart';
 
 class AddEditListingScreen extends StatefulWidget {
@@ -190,69 +191,88 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
     if (!mounted) return;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.vpn_key_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('API Key Google Gemini', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Masukkan Google Gemini API Key Anda untuk mengaktifkan AI Vision Multimodal otomatis yang mengenali foto barang secara akurat.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.4),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: 'AIzaSy...',
-                labelText: 'Gemini API Key',
-                filled: true,
-                fillColor: AppColors.background,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.vpn_key_rounded, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                'API Key Google Gemini',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                ),
               ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Masukkan Google Gemini API Key Anda untuk mengaktifkan AI Vision Multimodal otomatis yang mengenali foto barang secara akurat.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'AIzaSy...',
+                  labelText: 'Gemini API Key',
+                  filled: true,
+                  fillColor: isDark ? AppColors.darkBackground : AppColors.background,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Catatan: Jika dikosongkan, sistem tetap berjalan menggunakan analisis foto pintar berbasis heuristik lokal.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? AppColors.darkTextSecondary.withValues(alpha: 0.7) : AppColors.textTertiary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal'),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Catatan: Jika dikosongkan, sistem tetap berjalan menggunakan analisis foto pintar berbasis heuristik lokal.',
-              style: TextStyle(fontSize: 11, color: AppColors.textTertiary, fontStyle: FontStyle.italic),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                await AiService.saveApiKey(controller.text.trim());
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text('Kunci API Gemini berhasil disimpan!'),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Simpan'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () async {
-              await AiService.saveApiKey(controller.text.trim());
-              if (ctx.mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(
-                    content: Text('Kunci API Gemini berhasil disimpan!'),
-                    backgroundColor: AppColors.primary,
-                  ),
-                );
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -328,23 +348,42 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
         _isAiGenerating = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(result.fromLlm
-                    ? '✨ AI Gemini Vision berhasil memindai: "${result.title}" (${result.suggestedCategory})'
-                    : '💡 AI Lokal menyinkronkan: "${result.title}" (${result.suggestedCategory})'),
-              ),
-            ],
+      if (!result.fromLlm) {
+        final msg = result.llmError != null
+            ? '⚠️ Gemini Vision gagal (${result.llmError}). Beralih ke analisis lokal: "${result.title}"'
+            : '💡 Analisis Lokal menyinkronkan: "${result.title}". Atur Gemini API Key di ikon gerigi untuk scan foto 100% akurat.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text(msg)),
+              ],
+            ),
+            backgroundColor: result.llmError != null ? AppColors.warning : AppColors.primaryDark,
+            duration: const Duration(seconds: 4),
           ),
-          backgroundColor: AppColors.primary,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '✨ AI Gemini Vision berhasil memindai: "${result.title}" (${result.suggestedCategory})',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _isAiGenerating = false);
@@ -422,9 +461,10 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
   }
 
   void _showAddPhotoSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -442,23 +482,26 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: AppColors.border,
+                      color: isDark ? AppColors.darkBorder : AppColors.border,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-                const Text(
+                Text(
                   'Tambah Foto Barang',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Pilih sumber foto barang yang ingin Anda pasang:',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -473,24 +516,26 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
                           decoration: BoxDecoration(
-                            color: AppColors.primarySurface,
+                            color: isDark ? AppColors.darkBackground : AppColors.primarySurface,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: isDark ? AppColors.darkBorder : AppColors.primary.withValues(alpha: 0.3),
+                            ),
                           ),
-                          child: const Column(
+                          child: Column(
                             children: [
-                              CircleAvatar(
+                              const CircleAvatar(
                                 radius: 24,
                                 backgroundColor: AppColors.primary,
                                 child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 24),
                               ),
-                              SizedBox(height: 10),
+                              const SizedBox(height: 10),
                               Text(
                                 'Ambil Foto',
                                 style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
                                 ),
                               ),
                             ],
@@ -509,24 +554,26 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
                           decoration: BoxDecoration(
-                            color: AppColors.primarySurface,
+                            color: isDark ? AppColors.darkBackground : AppColors.primarySurface,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: isDark ? AppColors.darkBorder : AppColors.primary.withValues(alpha: 0.3),
+                            ),
                           ),
-                          child: const Column(
+                          child: Column(
                             children: [
-                              CircleAvatar(
+                              const CircleAvatar(
                                 radius: 24,
                                 backgroundColor: AppColors.primary,
                                 child: Icon(Icons.photo_library_rounded, color: Colors.white, size: 24),
                               ),
-                              SizedBox(height: 10),
+                              const SizedBox(height: 10),
                               Text(
                                 'Buka Galeri',
                                 style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
                                 ),
                               ),
                             ],
@@ -688,8 +735,11 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF9F5),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(60),
         child: SafeArea(
@@ -699,20 +749,31 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
               children: [
                 // Back Button
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                  icon: Icon(Icons.arrow_back_rounded, color: textColor),
+                  tooltip: 'Kembali',
                   onPressed: () {
-                    if (Navigator.canPop(context)) Navigator.pop(context);
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    } else {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MainNavigationScreen(initialIndex: 0),
+                        ),
+                        (route) => false,
+                      );
+                    }
                   },
                 ),
                 const SizedBox(width: 4),
 
                 // Title "Pasang Iklan"
-                const Text(
-                  'Pasang Iklan',
+                Text(
+                  widget.listingToEdit != null ? 'Edit Iklan' : 'Pasang Iklan',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: textColor,
                     letterSpacing: -0.2,
                   ),
                 ),
@@ -720,8 +781,50 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
 
                 // Share Button
                 IconButton(
-                  icon: const Icon(Icons.share_outlined, color: AppColors.textPrimary, size: 22),
-                  onPressed: () {},
+                  icon: Icon(Icons.share_outlined, color: textColor, size: 22),
+                  tooltip: 'Bagikan Draf Iklan',
+                  onPressed: () {
+                    final title = _titleController.text.trim();
+                    final desc = _descController.text.trim();
+                    final price = _isFree
+                        ? 'GRATIS (Donasi)'
+                        : (_priceController.text.isNotEmpty ? 'Rp ${_priceController.text}' : 'Belum diatur');
+
+                    String shareText;
+                    if (title.isNotEmpty) {
+                      shareText = '📦 Draf Iklan jadiGuna:\n'
+                          '• Judul: $title\n'
+                          '• Harga: $price\n'
+                          '• Kategori: $_selectedCategory\n'
+                          '• Kondisi: $_selectedCondition\n'
+                          '${desc.isNotEmpty ? "• Deskripsi: $desc\n" : ""}\n'
+                          'Lihat dan pasang barang preloved bermanfaat lainnya di aplikasi jadiGuna!';
+                    } else {
+                      shareText =
+                          'Yuk pasang dan temukan barang preloved bermanfaat di aplikasi jadiGuna: Beri Guna Baru, Temukan Lebih Dekat!';
+                    }
+
+                    Clipboard.setData(ClipboardData(text: shareText));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                title.isNotEmpty
+                                    ? 'Draf iklan "$title" berhasil disalin ke papan klip! Siap dibagikan.'
+                                    : 'Tautan aplikasi jadiGuna berhasil disalin ke papan klip!',
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: AppColors.primary,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

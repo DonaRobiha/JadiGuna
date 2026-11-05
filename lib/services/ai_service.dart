@@ -15,6 +15,7 @@ class AiGenerationResult {
   final bool fromLlm;
   final int? estimatedPrice;
   final String? suggestedCondition;
+  final String? llmError;
 
   AiGenerationResult({
     required this.title,
@@ -25,6 +26,7 @@ class AiGenerationResult {
     this.fromLlm = false,
     this.estimatedPrice,
     this.suggestedCondition,
+    this.llmError,
   });
 }
 
@@ -35,8 +37,9 @@ class AiService {
 
   // Model Gemini resmi & stabil dengan dukungan multimodal vision
   static const List<String> _geminiModels = [
-    'gemini-1.5-flash',
     'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.5-flash',
     'gemini-1.5-pro',
   ];
 
@@ -80,6 +83,11 @@ class AiService {
 
   static String cleanJsonResponse(String raw) {
     var s = raw.trim();
+    final firstBrace = s.indexOf('{');
+    final lastBrace = s.lastIndexOf('}');
+    if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+      return s.substring(firstBrace, lastBrace + 1).trim();
+    }
     if (s.startsWith('```json')) {
       s = s.substring(7);
     } else if (s.startsWith('```')) {
@@ -98,7 +106,7 @@ class AiService {
     String prompt, {
     Uint8List? imageBytes,
     bool asJson = false,
-    double temperature = 0.4,
+    double temperature = 0.3,
   }) async {
     final apiKey = await getApiKey();
     if (apiKey == null || apiKey.isEmpty) {
@@ -110,7 +118,7 @@ class AiService {
     for (final model in _geminiModels) {
       try {
         final endpoint =
-            'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
+            'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey';
 
         final parts = <Map<String, dynamic>>[];
 
@@ -130,9 +138,10 @@ class AiService {
               mime = 'image/webp';
             }
           }
+          // Perbaikan protokol REST Gemini Multimodal: gunakan camelCase (inlineData & mimeType)
           parts.add({
-            'inline_data': {
-              'mime_type': mime,
+            'inlineData': {
+              'mimeType': mime,
               'data': base64Encode(imageBytes),
             },
           });
@@ -170,9 +179,11 @@ class AiService {
           lastError = Exception(
             'Gemini ($model) HTTP ${response.statusCode}: ${response.body}',
           );
+          debugPrint('Gemini HTTP Error: $lastError');
         }
       } catch (e) {
         lastError = Exception('Gemini ($model) gagal: $e');
+        debugPrint('Gemini Exception: $lastError');
       }
     }
 
@@ -198,36 +209,52 @@ class AiService {
 
     final apiKey = await getApiKey();
     final hasLlm = apiKey != null && apiKey.isNotEmpty;
+    String? lastLlmError;
 
     if (hasLlm) {
       try {
         final prompt =
             '''
-Kamu adalah sistem Computer Vision dan AI Kurator profesional untuk marketplace "jadiGuna" (Indonesia).
-Tugas utamamu: SCAN FOTO BARANG INI DENGAN SANGAT CERMAT dan buatkan data iklan yang 100% akurat sesuai objek nyata di foto!
+Kamu adalah sistem Computer Vision AI profesional kelas dunia khusus kurasi marketplace "jadiGuna" di Indonesia.
+Tugas utamamu: PINDAI DAN ANALISIS FOTO BARANG INI DENGAN SANGAT CERMAT, DETAIL, DAN AKURAT!
 
-WAJIB IKUTI ATURAN BERIKUT:
-1. IDENTIFIKASI OBJEK UTAMA DARI FOTO:
-   - Kenali apa objek utama yang difoto (misalnya: Sepatu Olahraga/Sneakers, Baju Kemeja Pria, Celana Jeans, Laptop Asus ROG, Monitor LED LG, Kipas Angin Meja, Buku Novel, Helm Motor KYT, Meja Belajar Kayu, Gitar Akustik, Tas Ransel, dll).
-   - Tentukan judul yang spesifik, jelas, dan menarik (maksimal 6-8 kata, jangan pernah gunakan judul generik seperti "Barang Bekas").
-   - Jika pengguna sudah menuliskan judul awal, sempurnakan judul tersebut agar sinkron dengan foto fisik.
+PETUNJUK ANALISIS MULTIMODAL VISION:
+1. IDENTIFIKASI NAMA & TIPE BARANG (SANGAT SPESIFIK):
+   - Amati foto dengan teliti: sebutkan merk/brand jika terlihat (misal: Converse, Asus, Sony, Miyako, Eiger, IKEA, Honda, dsb), model/tipe, fungsi utama, dan warna dominan.
+   - Contoh judul spesifik yang diharapkan:
+     • "Sepatu Sneaker Converse All Star Low Hitam"
+     • "Kipas Angin Meja Miyako 12 Inch Biru"
+     • "Laptop ASUS VivoBook 14 Silver"
+     • "Helm Full Face KYT TT Course Hitam Doff"
+     • "Gitar Akustik Yamaha F310 Natural Wood"
+     • "Botol Minum Tupperware Eco Bottle 750ml"
+     • "Kemeja Flanel Kotak-kotak Pria Merah Hitam"
+   - JANGAN PERNAH membuat judul generik atau ambigu seperti "Barang Bekas", "Barang Preloved", atau "Peralatan".
+   - Jika pengguna sudah menuliskan judul awal, sempurnakan agar sinkron dengan detail fisik yang tampak pada foto.
 
 2. KLASIFIKASI KATEGORI RESMI (PILIH PERSIS SALAH SATU DARI: ${_allowedCategories.join(', ')}):
-   - "Elektronik": HP, smartphone, tablet, laptop, PC, monitor, TV, kipas angin, rice cooker, blender, dispenser, setrika, headphone, speaker, mouse, keyboard, gadget elektronik.
-   - "Furnitur": meja, kursi, lemari pakaian, rak piring, rak buku kayu/besi, sofa, kasur, matras, nakas, bangku, perabot interior.
-   - "Buku & Hobi": buku pelajaran, novel, komik, alat musik (gitar, ukulele), raket badminton, bola, perlengkapan olahraga, mainan, konsol game.
-   - "Perlengkapan Rumah": pakaian, kaos, kemeja, jaket, celana, sepatu, sandal, tas, ransel, piring, wajan, panci, helm motor, selimut, sprei, peralatan makan/dapur.
-   - "Gratis": jika barang ini dinyatakan gratis oleh pemilik.
+   - "Elektronik": HP, smartphone, tablet, laptop, PC, monitor, TV, kipas angin, rice cooker, blender, dispenser, setrika, headphone, headset, speaker, mouse, keyboard, gadget elektronik, charger, powerbank.
+   - "Furnitur": meja belajar, kursi kerja/kantor/lipat, lemari pakaian, rak piring/sepatu/buku, sofa, kasur, matras, nakas, bangku, perabot interior.
+   - "Buku & Hobi": buku novel, buku pelajaran/kuliah, komik, alat musik (gitar, ukulele, piano), raket badminton, bola olahraga, sepeda, mainan, game board, perlengkapan hobi.
+   - "Perlengkapan Rumah": pakaian, baju kaos, kemeja, celana, jaket, sepatu, sandal, tas ransel, dompet, piring, wajan, panci, helm motor, perlengkapan tidur/kamar, botol minum.
+   - "Gratis": HANYA JIKA penawaran ini adalah donasi sukarela tanpa dipungut biaya.
 
-3. KONDISI & ESTIMASI HARGA:
-   - Evaluasi kondisi fisik visual ('Baru / Belum Dipakai', 'Sangat Baik', 'Layak Pakai', atau 'Perlu Servis / Modif').
-   - Berikan perkiraan harga pasar wajar barang bekas tersebut dalam Rupiah (angka bulat tanpa titik, contoh: 85000, 150000, 350000). Jika gratis, berikan 0.
+3. KONDISI FISIK VISUAL (PILIH PERSIS SALAH SATU):
+   - "Baru / Belum Dipakai": masih terlihat gres, ada segel/tag, tidak ada tanda pemakaian.
+   - "Sangat Baik": tampak sangat mulus dan bersih, hanya jejak pemakaian sangat minim.
+   - "Layak Pakai": ada tanda pemakaian wajar, lecet tipis, atau sedikit kusam tapi fungsi utuh.
+   - "Perlu Servis / Modif": ada bagian patah, sobek, retak, atau butuh perbaikan.
 
-4. DESKRIPSI LENGKAP:
-   - Tulis deskripsi 3-5 kalimat ramah, jelas, menyebutkan ciri visual yang terlihat (warna, bahan, perkiraan ukuran), dan siap COD di area yang aman.
+4. ESTIMASI HARGA PASAR BEKAS WAJAR (DALAM RUPIAH):
+   - Perkirakan harga pasar wajar barang bekas tersebut di Indonesia (berikan angka bulat, contoh: 85000, 150000, 350000, 1200000). Jika gratis, isi 0.
+
+5. DESKRIPSI LENGKAP & MENARIK:
+   - Tulis deskripsi 3-5 kalimat sopan, ramah, dan menjual dalam Bahasa Indonesia.
+   - Sebutkan ciri fisik yang terlihat (warna, kelengkapan, material, estimasi ukuran/kapasitas).
+   - Sertakan ajakan ramah untuk COD / ketemuan di tempat yang aman.
 
 Data Konteks Pengguna:
-- Judul saat ini: ${effectiveTitle.isEmpty ? '(belum ada, tentukan otomatis dari foto)' : effectiveTitle}
+- Judul saat ini: ${effectiveTitle.isEmpty ? '(belum ada, tentukan murni dari pemindaian foto)' : effectiveTitle}
 - Catatan pengguna: ${effectiveDetails.trim().isEmpty ? '(tidak ada)' : effectiveDetails}
 - Kondisi awal: $effectiveCondition
 - Jenis penawaran: ${isFree ? 'GRATIS (donasi tanpa biaya)' : 'Dijual'}
@@ -291,6 +318,7 @@ Balas HANYA dengan JSON valid format:
           suggestedCondition: json['condition']?.toString(),
         );
       } catch (e) {
+        lastLlmError = e.toString();
         debugPrint(
           'Panggilan AI LLM Gemini gagal, beralih ke Fallback Cerdas: $e',
         );
@@ -307,6 +335,7 @@ Balas HANYA dengan JSON valid format:
       imagePath: imagePath,
       imageBytes: imageBytes,
       dimensions: dimensions,
+      llmError: lastLlmError,
     );
   }
 
@@ -735,6 +764,7 @@ $trimmed
     String? imagePath,
     Uint8List? imageBytes,
     Map<String, double>? dimensions,
+    String? llmError,
   }) {
     // 1. Deteksi nama barang dari kombinasi teks pengguna dan nama file foto
     final textInfo = _detectItemFromText('$title $rawDetails');
@@ -835,15 +865,25 @@ $trimmed
       'jadiguna',
     }.toList();
 
+    String fallbackTips;
+    if (llmError != null) {
+      fallbackTips =
+          '⚠️ Gemini Vision gagal terhubung: $llmError. Sistem menggunakan analisis estimasi lokal.';
+    } else {
+      fallbackTips =
+          '💡 Mode Cerdas Lokal: Masukkan Google Gemini API Key pada ikon kunci (🔑) untuk mengaktifkan AI Vision multimodal otomatis yang memindai kamera dengan akurasi 100%.';
+    }
+
     return AiGenerationResult(
       title: detectedName,
       description: buffer.toString().trim(),
       suggestedCategory: suggestedCat,
       suggestedKeywords: keywords,
-      tips: '💡 Mode Cerdas Lokal: Masukkan Google Gemini API Key pada ikon kunci (🔑) untuk mengaktifkan AI Vision multimodal otomatis yang memindai kamera dengan akurasi 100%.',
+      tips: fallbackTips,
       fromLlm: false,
       estimatedPrice: estimatedPrice,
       suggestedCondition: condition,
+      llmError: llmError,
     );
   }
 }

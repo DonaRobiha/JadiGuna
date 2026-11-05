@@ -22,23 +22,26 @@ class FavoritesScreen extends StatelessWidget {
     final userLat = listingProvider.userLocation['latitude'];
     final userLng = listingProvider.userLocation['longitude'];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
         titleSpacing: 16,
-        title: const Row(
+        title: Row(
           children: [
-            Image(
+            const Image(
               image: AssetImage('assets/logo_jadiguna.png'),
               width: 34,
               height: 34,
               fit: BoxFit.contain,
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Barang Favorit',
@@ -47,7 +50,7 @@ class FavoritesScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: textColor,
                   letterSpacing: -0.4,
                 ),
               ),

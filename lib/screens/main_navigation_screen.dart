@@ -73,6 +73,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final navBg = isDark ? AppColors.darkSurface : Colors.white;
+    final navBorder = isDark ? AppColors.darkBorder : AppColors.border.withValues(alpha: 0.8);
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -80,11 +84,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.8), width: 1)),
+          color: navBg,
+          border: Border(top: BorderSide(color: navBorder, width: 1)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
               blurRadius: 10,
               offset: const Offset(0, -3),
             ),
@@ -96,11 +100,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, 'Beranda', Icons.home_rounded, Icons.home_outlined),
-                _buildNavItem(1, 'Favorit', Icons.favorite_rounded, Icons.favorite_outline_rounded),
+                _buildNavItem(0, 'Beranda', Icons.home_rounded, Icons.home_outlined, isDark: isDark),
+                _buildNavItem(1, 'Favorit', Icons.favorite_rounded, Icons.favorite_outline_rounded, isDark: isDark),
                 _buildPasangNavItem(2),
-                _buildNavItem(3, 'Pesan', Icons.chat_bubble_rounded, Icons.chat_bubble_outline_rounded),
-                _buildNavItem(4, 'Profil', Icons.person_rounded, Icons.person_outline_rounded),
+                _buildNavItem(3, 'Pesan', Icons.chat_bubble_rounded, Icons.chat_bubble_outline_rounded, isDark: isDark),
+                _buildNavItem(4, 'Profil', Icons.person_rounded, Icons.person_outline_rounded, isDark: isDark),
               ],
             ),
           ),
@@ -109,8 +113,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, String label, IconData activeIcon, IconData inactiveIcon) {
+  Widget _buildNavItem(
+    int index,
+    String label,
+    IconData activeIcon,
+    IconData inactiveIcon, {
+    required bool isDark,
+  }) {
     final isSelected = _currentIndex == index;
+    final activeColor = isDark ? AppColors.primaryLight : AppColors.primary;
+    final inactiveColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
     return InkWell(
       onTap: () => setState(() => _currentIndex = index),
@@ -133,7 +145,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               Icon(
                 isSelected ? activeIcon : inactiveIcon,
                 size: 21,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected ? activeColor : inactiveColor,
               ),
             const SizedBox(height: 3),
             Text(
@@ -141,7 +153,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected ? activeColor : inactiveColor,
               ),
             ),
           ],

@@ -105,14 +105,20 @@ class ListingCard extends StatelessWidget {
         ? listing.sellerName[0].toUpperCase()
         : 'U';
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border.withValues(alpha: 0.7);
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7), width: 1),
+        border: Border.all(color: borderColor, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -218,10 +224,10 @@ class ListingCard extends StatelessWidget {
                               distanceMeters != null
                                   ? LocationHelper.formatDistance(distanceMeters)
                                   : '0.8 km',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
+                                color: textColor,
                               ),
                             ),
                           ],
@@ -248,17 +254,17 @@ class ListingCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE8F2EA),
+                              color: isDark ? const Color(0xFF1B3826) : const Color(0xFFE8F2EA),
                               borderRadius: BorderRadius.circular(5),
                             ),
                             child: Text(
                               _formatShortCondition(listing.condition),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF27553A),
+                                color: isDark ? const Color(0xFF81C784) : const Color(0xFF27553A),
                               ),
                             ),
                           ),
@@ -269,11 +275,11 @@ class ListingCard extends StatelessWidget {
                             listing.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               height: 1.15,
-                              color: AppColors.textPrimary,
+                              color: textColor,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -283,9 +289,9 @@ class ListingCard extends StatelessWidget {
                             listing.locationName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              color: AppColors.textSecondary,
+                              color: subTextColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -306,7 +312,7 @@ class ListingCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w800,
-                                color: isFree ? AppColors.terracotta : AppColors.textPrimary,
+                                color: isFree ? AppColors.terracotta : textColor,
                               ),
                             ),
                           ),

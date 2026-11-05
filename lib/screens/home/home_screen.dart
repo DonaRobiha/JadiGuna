@@ -63,8 +63,11 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     ];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet<void>(
       context: context,
+      backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -78,14 +81,14 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
                   child: Text(
                     'Pilih Lokasi Pencarian Barang',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                     ),
                   ),
                 ),
@@ -168,8 +171,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final userLat = listingProvider.userLocation['latitude'];
     final userLng = listingProvider.userLocation['longitude'];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(62),
         child: SafeArea(
@@ -200,21 +209,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         'Halo, $userName 👋',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
+                          color: textColor,
                           letterSpacing: -0.3,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Beri Guna Baru, Temukan Lebih Dekat',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
+                          color: subTextColor,
                         ),
                       ),
                     ],
@@ -224,9 +233,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 IconButton(
                   tooltip: 'Sensor Interaktif',
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.sensors_rounded,
-                    color: AppColors.textSecondary,
+                    color: subTextColor,
                     size: 22,
                   ),
                   onPressed: () {
@@ -240,9 +249,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 IconButton(
                   tooltip: 'Notifikasi',
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.notifications_none_rounded,
-                    color: AppColors.textPrimary,
+                    color: textColor,
                     size: 24,
                   ),
                   onPressed: () {
@@ -280,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Material(
-                  color: Colors.white,
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(16),
                   child: InkWell(
                     onTap: () => _showCityPicker(
@@ -296,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: borderColor),
                       ),
                       child: Row(
                         children: [
@@ -319,12 +328,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Lokasi Sekitar Anda',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
+                                    color: subTextColor,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -332,10 +341,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                   listingProvider.userCityName,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
+                                    color: textColor,
                                   ),
                                 ),
                               ],
@@ -384,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Material(
-                  color: Colors.white,
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(28),
                   child: InkWell(
                     onTap: () => _openSearch(context),
@@ -396,23 +405,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: borderColor),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
                           Icon(
                             Icons.search_rounded,
-                            color: AppColors.textTertiary,
+                            color: subTextColor,
                             size: 20,
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'Cari meja belajar, buku, sofa...',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: AppColors.textTertiary,
+                                color: subTextColor,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -420,7 +429,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           Icon(
                             Icons.mic_none_rounded,
-                            color: AppColors.textTertiary,
+                            color: subTextColor,
                             size: 20,
                           ),
                         ],
@@ -574,7 +583,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -583,16 +592,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+                              color: textColor,
                               letterSpacing: -0.2,
                             ),
                           ),
-                          SizedBox(height: 3),
+                          const SizedBox(height: 3),
                           Text(
                             'Bisa diambil langsung atau COD santai',
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: AppColors.textSecondary,
+                              color: subTextColor,
                             ),
                           ),
                         ],
@@ -634,6 +643,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildSortPill(
                       'Terdekat',
                       isSelected: _selectedSortFilter == 'Terdekat',
+                      isDark: isDark,
                       onTap: () {
                         setState(() => _selectedSortFilter = 'Terdekat');
                         listingProvider.setSortBy('terdekat');
@@ -643,6 +653,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildSortPill(
                       'Terbaru',
                       isSelected: _selectedSortFilter == 'Terbaru',
+                      isDark: isDark,
                       onTap: () {
                         setState(() => _selectedSortFilter = 'Terbaru');
                         listingProvider.setSortBy('terbaru');
@@ -652,6 +663,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildSortPill(
                       'Harga Terendah',
                       isSelected: _selectedSortFilter == 'Harga Terendah',
+                      isDark: isDark,
                       onTap: () {
                         setState(() {
                           _selectedSortFilter = 'Harga Terendah';
@@ -664,6 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Terverifikasi',
                       isSelected: _selectedSortFilter == 'Terverifikasi',
                       icon: Icons.check_circle_outline_rounded,
+                      isDark: isDark,
                       onTap: () {
                         setState(() {
                           _selectedSortFilter = 'Terverifikasi';
@@ -746,11 +759,12 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool isSelected,
     IconData? icon,
     required VoidCallback onTap,
+    bool isDark = false,
   }) {
     return Material(
       color: isSelected
           ? AppColors.primary
-          : AppColors.surfaceVariant,
+          : (isDark ? AppColors.darkSurface : AppColors.surfaceVariant),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -769,7 +783,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   size: 14,
                   color: isSelected
                       ? Colors.white
-                      : AppColors.textPrimary,
+                      : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
                 ),
                 const SizedBox(width: 5),
               ],
@@ -782,7 +796,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       : FontWeight.w600,
                   color: isSelected
                       ? Colors.white
-                      : AppColors.textPrimary,
+                      : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
                 ),
               ),
             ],

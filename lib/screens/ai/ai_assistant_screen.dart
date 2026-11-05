@@ -135,22 +135,43 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(res.fromLlm
-                    ? '✨ AI Gemini Vision berhasil memindai: "${res.title}"'
-                    : '💡 AI berhasil menganalisis: "${res.title}"'),
-              ),
-            ],
+      if (!res.fromLlm) {
+        final message = res.llmError != null
+            ? '⚠️ Gemini Vision gagal (${res.llmError}). Beralih ke analisis lokal: "${res.title}"'
+            : _isApiKeyConfigured
+                ? '💡 Analisis Lokal: "${res.title}".'
+                : '💡 Analisis Lokal: "${res.title}". Masukkan Gemini API Key di ikon 🔑 untuk hasil scan foto 100% akurat.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text(message)),
+              ],
+            ),
+            backgroundColor: res.llmError != null ? AppColors.warning : AppColors.primaryDark,
+            duration: const Duration(seconds: 4),
           ),
-          backgroundColor: AppColors.primary,
-        ),
-      );
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '✨ AI Gemini Vision berhasil memindai: "${res.title}" (${res.suggestedCategory})',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -186,74 +207,93 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     if (!mounted) return;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.vpn_key_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('API Key Google Gemini', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Masukkan Google Gemini API Key Anda untuk mengaktifkan AI Vision Multimodal yang memindai foto barang secara akurat.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.4),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: 'AIzaSy...',
-                labelText: 'Gemini API Key',
-                filled: true,
-                fillColor: AppColors.background,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.vpn_key_rounded, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                'API Key Google Gemini',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                ),
               ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Masukkan Google Gemini API Key Anda untuk mengaktifkan AI Vision Multimodal yang memindai foto barang secara akurat.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'AIzaSy...',
+                  labelText: 'Gemini API Key',
+                  filled: true,
+                  fillColor: isDark ? AppColors.darkBackground : AppColors.background,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Catatan: Jika dikosongkan, sistem tetap berjalan dalam mode analisis lokal.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? AppColors.darkTextSecondary.withValues(alpha: 0.7) : AppColors.textTertiary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal'),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Catatan: Jika dikosongkan, sistem tetap berjalan dalam mode analisis lokal.',
-              style: TextStyle(fontSize: 11, color: AppColors.textTertiary, fontStyle: FontStyle.italic),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                await AiService.saveApiKey(controller.text.trim());
+                await _checkApiKeyStatus();
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text('Kunci API Gemini berhasil disimpan!'),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Simpan'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () async {
-              await AiService.saveApiKey(controller.text.trim());
-              await _checkApiKeyStatus();
-              if (ctx.mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(
-                    content: Text('Kunci API Gemini berhasil disimpan!'),
-                    backgroundColor: AppColors.primary,
-                  ),
-                );
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildPhotoPreview() {
+  Widget _buildPhotoPreview(bool isDark) {
     if (_selectedImageBytes != null) {
       return Stack(
         alignment: Alignment.topRight,
@@ -293,23 +333,37 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: isDark ? AppColors.darkSurface : AppColors.background,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+          style: BorderStyle.solid,
+        ),
       ),
       child: Column(
         children: [
-          const Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.textSecondary),
+          Icon(
+            Icons.add_a_photo_outlined,
+            size: 36,
+            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+          ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Unggah Foto Barang untuk Pemindaian AI',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'AI Vision akan otomatis mengenali jenis barang, kategori, kondisi, dan harga wajar.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 14),
           Row(
@@ -317,7 +371,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             children: [
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
+                  foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
+                  side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.primary),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () => _pickImage(ImageSource.camera),
@@ -327,7 +382,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               const SizedBox(width: 12),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
+                  foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
+                  side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.primary),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () => _pickImage(ImageSource.gallery),
@@ -343,8 +399,14 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Asisten AI & Scan Barang'),
         actions: [
@@ -405,19 +467,25 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: borderColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('1. Foto Barang (Pemindaian Visual)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  Text(
+                    '1. Foto Barang (Pemindaian Visual)',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textColor),
+                  ),
                   const SizedBox(height: 10),
-                  _buildPhotoPreview(),
+                  _buildPhotoPreview(isDark),
                   const SizedBox(height: 18),
 
-                  const Text('2. Data Barang (Boleh Dikosongkan jika ada foto)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  Text(
+                    '2. Data Barang (Boleh Dikosongkan jika ada foto)',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textColor),
+                  ),
                   const SizedBox(height: 10),
                   CustomTextField(
                     controller: _titleController,
@@ -440,9 +508,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Kondisi Fisik:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                            Text(
+                              'Kondisi Fisik:',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: subTextColor),
+                            ),
                             const SizedBox(height: 4),
                             DropdownButtonFormField<String>(
+                              dropdownColor: cardBg,
                               initialValue: AppConstants.conditions.contains(_selectedCondition)
                                   ? _selectedCondition
                                   : AppConstants.conditions.first,
@@ -456,7 +528,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                                   value: c,
                                   child: Text(
                                     c,
-                                    style: const TextStyle(fontSize: 11),
+                                    style: TextStyle(fontSize: 11, color: textColor),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 );
@@ -475,12 +547,23 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Jenis Penawaran:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                            Text(
+                              'Jenis Penawaran:',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: subTextColor),
+                            ),
                             const SizedBox(height: 4),
                             ChoiceChip(
-                              label: Text(_isFree ? 'Gratis' : 'Dijual', style: const TextStyle(fontSize: 12)),
+                              label: Text(
+                                _isFree ? 'Gratis' : 'Dijual',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _isFree ? AppColors.freeBadge : textColor,
+                                ),
+                              ),
                               selected: _isFree,
-                              selectedColor: AppColors.freeBadgeBg,
+                              selectedColor: isDark ? const Color(0xFF4A251C) : AppColors.freeBadgeBg,
+                              backgroundColor: isDark ? AppColors.darkSurface : AppColors.background,
                               onSelected: (val) => setState(() => _isFree = val),
                             ),
                           ],
@@ -507,9 +590,12 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.primaryLight, width: 1.5),
+                  border: Border.all(
+                    color: isDark ? AppColors.darkBorder : AppColors.primaryLight,
+                    width: 1.5,
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -518,20 +604,48 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                       children: [
                         const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
                         const SizedBox(width: 8),
-                        const Text('Hasil Pemindaian AI', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                        Text(
+                          'Hasil Pemindaian AI',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textColor),
+                        ),
                         const Spacer(),
-                        if (_lastResult != null)
+                        if (_lastResult != null) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: AppColors.primarySurface,
+                              color: _lastResult!.fromLlm
+                                  ? (isDark ? const Color(0xFF1E3A24) : AppColors.primarySurface)
+                                  : (isDark ? const Color(0xFF3D2E14) : Colors.amber.shade50),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              _lastResult!.fromLlm ? '✨ Gemini Vision' : '💡 Analisis Lokal',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: _lastResult!.fromLlm
+                                    ? (isDark ? const Color(0xFF81C784) : AppColors.primaryDark)
+                                    : (isDark ? Colors.amber.shade300 : Colors.amber.shade900),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.darkSurface : AppColors.primarySurface,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               'Kategori: ${_lastResult!.suggestedCategory}',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
+                              ),
                             ),
                           ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -554,31 +668,70 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                     TextField(
                       controller: _resultController,
                       maxLines: 8,
-                      style: const TextStyle(fontSize: 13, height: 1.5),
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
+                      style: TextStyle(fontSize: 13, height: 1.5, color: textColor),
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
                         hintText: 'Hasil deskripsi...',
+                        fillColor: isDark ? AppColors.darkSurface : Colors.white,
                       ),
                     ),
                     const SizedBox(height: 12),
 
                     // Suggested Keywords
                     if (_lastResult != null && _lastResult!.suggestedKeywords.isNotEmpty) ...[
-                      const Text('Saran Kata Kunci Pencarian:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+                      Text(
+                        'Saran Kata Kunci Pencarian:',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: subTextColor),
+                      ),
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
                         children: _lastResult!.suggestedKeywords.map((k) {
                           return Chip(
-                            label: Text(k, style: const TextStyle(fontSize: 10)),
-                            backgroundColor: AppColors.background,
+                            label: Text(
+                              k,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                              ),
+                            ),
+                            backgroundColor: isDark ? AppColors.darkSurface : AppColors.background,
                             padding: EdgeInsets.zero,
                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           );
                         }).toList(),
                       ),
                       const SizedBox(height: 14),
+                    ],
+
+                    if (_lastResult != null && _lastResult!.tips.isNotEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: _lastResult!.fromLlm
+                              ? (isDark ? const Color(0xFF1E3A24) : AppColors.primarySurface)
+                              : (isDark ? const Color(0xFF3D2E14) : Colors.amber.shade50),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _lastResult!.fromLlm
+                                ? (isDark ? const Color(0xFF2E5A35) : AppColors.primaryLight)
+                                : (isDark ? const Color(0xFF6B5120) : Colors.amber.shade200),
+                          ),
+                        ),
+                        child: Text(
+                          _lastResult!.tips,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _lastResult!.fromLlm
+                                ? (isDark ? const Color(0xFFA5D6A7) : AppColors.primaryDark)
+                                : (isDark ? Colors.amber.shade200 : Colors.amber.shade900),
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
                     ],
 
                     OutlinedButton.icon(
