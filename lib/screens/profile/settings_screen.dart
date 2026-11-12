@@ -191,6 +191,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     onPressed: () async {
+                      if (!_notificationsEnabled) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Notifikasi Aplikasi sedang dimatikan. Aktifkan switch di atas terlebih dahulu.',
+                            ),
+                            backgroundColor: AppColors.warning,
+                          ),
+                        );
+                        return;
+                      }
                       await NotificationService.instance.requestPermission();
                       final success = await NotificationService.instance
                           .showNotification(
@@ -314,7 +325,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           Text(
                             SupabaseConstants.isConfigured
-                                ? 'Terhubung (Cloud PostgreSQL & Auth)'
+                                ? 'Terhubung (Supabase Auth aktif • Katalog & chat SQLite lokal)'
                                 : 'Mode SQLite Lokal Aktif (Offline First)',
                             style: TextStyle(
                               fontSize: 11,

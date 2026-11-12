@@ -107,7 +107,7 @@ class ListingCard extends StatelessWidget {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? AppColors.darkCard : Colors.white;
-    final borderColor = isDark ? AppColors.darkBorder : AppColors.border.withValues(alpha: 0.7);
+    final borderColor = isDark ? AppColors.darkBorder : const Color(0xFFDAD4C8);
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final subTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
@@ -115,12 +115,18 @@ class ListingCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor, width: 1),
+        border: Border.all(color: borderColor, width: 1.1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.11),
+            blurRadius: 14,
+            spreadRadius: 0.5,
+            offset: const Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1.5),
           ),
         ],
       ),
@@ -241,7 +247,7 @@ class ListingCard extends StatelessWidget {
               // Content Details
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(9, 0, 9, 6),
+                  padding: const EdgeInsets.fromLTRB(9, 2, 9, 6),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -276,7 +282,7 @@ class ListingCard extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               height: 1.15,
                               color: textColor,

@@ -80,11 +80,19 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.location_on, size: 12, color: AppColors.primary),
+                                Icon(Icons.location_on, size: 12, color: isDark ? AppColors.primaryLight : AppColors.primary),
                                 const SizedBox(width: 2),
-                                Text(
-                                  user?.city ?? listingProvider.userCityName,
-                                  style: const TextStyle(fontSize: 11, color: AppColors.primaryDark, fontWeight: FontWeight.w600),
+                                Flexible(
+                                  child: Text(
+                                    user?.city ?? listingProvider.userCityName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -111,11 +119,11 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
                     children: [
                       _buildStatColumn('Iklan Saya', '${listingProvider.myListings.length}', () {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen()));
-                      }, subTextColor),
+                      }, subTextColor, isDark),
                       Container(height: 24, width: 1, color: borderColor),
-                      _buildStatColumn('Favorit', '${listingProvider.favorites.length}', null, subTextColor),
+                      _buildStatColumn('Favorit', '${listingProvider.favorites.length}', null, subTextColor, isDark),
                       Container(height: 24, width: 1, color: borderColor),
-                      _buildStatColumn('Status', 'Terverifikasi', null, subTextColor),
+                      _buildStatColumn('Status', 'Terverifikasi', null, subTextColor, isDark),
                     ],
                   ),
                 ],
@@ -182,10 +190,10 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
                   ),
                   _buildDivider(borderColor),
                   _buildMenuItem(
-                    icon: Icons.history_rounded,
+                    icon: Icons.verified_user_outlined,
                     iconColor: Colors.teal,
-                    title: 'Riwayat Aktivitas Barang',
-                    subtitle: 'Pencatatan riwayat status barang yang aman & terverifikasi',
+                    title: 'Blockchain & Riwayat Barang',
+                    subtitle: 'Pencatatan status barang berantai (SHA-256 Ledger)',
                     textColor: textColor,
                     subColor: subTextColor,
                     onTap: () {
@@ -312,14 +320,16 @@ ProfileAvatar(photo: user?.profilePhotoPath, radius: 30),
     );
   }
 
-  Widget _buildStatColumn(String label, String value, VoidCallback? onTap, [Color? subColor]) {
+  Widget _buildStatColumn(String label, String value, VoidCallback? onTap, [Color? subColor, bool isDark = false]) {
+    final valueColor = isDark ? AppColors.primaryLight : AppColors.primary;
+    final labelColor = isDark ? AppColors.darkTextPrimary : (subColor ?? AppColors.textPrimary);
     return InkWell(
       onTap: onTap,
       child: Column(
         children: [
-          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryLight)),
+          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: valueColor)),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 11, color: subColor ?? AppColors.textSecondary)),
+          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: labelColor)),
         ],
       ),
     );

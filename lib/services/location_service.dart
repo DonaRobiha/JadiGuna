@@ -5,6 +5,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/app_constants.dart';
 import '../core/utils/location_helper.dart';
 
+class ResolvedLocationAddress {
+  final double latitude;
+  final double longitude;
+  final String title;
+  final String subtitle;
+  final String shortCity;
+  final String fullAddress;
+
+  const ResolvedLocationAddress({
+    required this.latitude,
+    required this.longitude,
+    required this.title,
+    required this.subtitle,
+    required this.shortCity,
+    required this.fullAddress,
+  });
+}
+
 class LocationService {
   static final LocationService instance = LocationService();
 
@@ -78,13 +96,22 @@ class LocationService {
       try {
         position = await Geolocator.getCurrentPosition(
           locationSettings: LocationSettings(
-            accuracy: highAccuracy ? LocationAccuracy.high : LocationAccuracy.medium,
-            timeLimit: const Duration(seconds: 10),
+            accuracy: highAccuracy ? LocationAccuracy.best : LocationAccuracy.medium,
+            timeLimit: const Duration(seconds: 12),
           ),
         );
       } catch (_) {
-        // Fallback to last known hardware GPS position if fresh satellite fix times out
-        position = await Geolocator.getLastKnownPosition();
+        // Retry with medium accuracy before falling back to last known position
+        try {
+          position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+              timeLimit: Duration(seconds: 5),
+            ),
+          );
+        } catch (_) {
+          position = await Geolocator.getLastKnownPosition();
+        }
       }
 
       // If position is the Android Emulator default dummy coordinate (Mountain View),
@@ -159,12 +186,133 @@ class LocationService {
   }
 
   /// Real-time high-accuracy position stream
-  Stream<Position> getPositionStream({LocationAccuracy accuracy = LocationAccuracy.high}) {
+  Stream<Position> getPositionStream({LocationAccuracy accuracy = LocationAccuracy.best}) {
     return Geolocator.getPositionStream(
       locationSettings: LocationSettings(
         accuracy: accuracy,
         distanceFilter: 2,
       ),
+    );
+  }
+
+  /// Reverse-geocode coordinates into a detailed Indonesian street/area/city address
+  Future<ResolvedLocationAddress> reverseGeocode(double lat, double lng) async {
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lng&zoom=18&addressdetails=1&accept-language=id',
+      );
+      final response = await http.get(
+        uri,
+        headers: const {
+          'User-Agent': 'JadiGunaApp/1.0 (https://jadiguna.id)',
+          'Accept-Language': 'id',
+        },
+      ).timeout(const Duration(seconds: 6));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final addr = (data['address'] as Map<String, dynamic>?) ?? {};
+
+        String? pickFirst(List<String> keys) {
+          for (final k in keys) {
+            final v = addr[k]?.toString().trim();
+            if (v != null && v.isNotEmpty) return v;
+          }
+          return null;
+        }
+
+        final road = pickFirst(['road', 'pedestrian', 'residential', 'footway', 'path']);
+        final houseNum = pickFirst(['house_number']);
+        final roadFull = road != null
+            ? (houseNum != null ? '$road No. $houseNum' : road)
+            : null;
+        final place = pickFirst(['amenity', 'building', 'shop', 'tourism', 'leisure', 'neighbourhood', 'hamlet']);
+        final village = pickFirst(['village', 'quarter', 'suburb']);
+        final rawDistrict = pickFirst(['city_district', 'district', 'subdistrict', 'suburb']);
+        final district = rawDistrict != null &&
+                !rawDistrict.toLowerCase().startsWith('kec')
+            ? 'Kec. $rawDistrict'
+            : rawDistrict;
+        final city = pickFirst(['city', 'town', 'county', 'regency', 'municipality']);
+        final state = pickFirst(['state', 'region']);
+
+        final titleParts = <String>[];
+        void addTitlePart(String? val) {
+          if (val == null || val.isEmpty) return;
+          if (!titleParts.any((e) => e.toLowerCase() == val.toLowerCase())) {
+            titleParts.add(val);
+          }
+        }
+
+        addTitlePart(place ?? roadFull);
+        if (place != null && roadFull != null) {
+          addTitlePart(roadFull);
+        } else {
+          addTitlePart(village);
+        }
+
+        final subtitleParts = <String>[];
+        void addSubPart(String? val) {
+          if (val == null || val.isEmpty) return;
+          if (!subtitleParts.any((e) => e.toLowerCase() == val.toLowerCase()) &&
+              !titleParts.any((e) => e.toLowerCase() == val.toLowerCase())) {
+            subtitleParts.add(val);
+          }
+        }
+
+        addSubPart(district);
+        addSubPart(city);
+        addSubPart(state);
+
+        String title = titleParts.join(', ');
+        if (title.isEmpty) {
+          final displayName = data['display_name']?.toString() ?? '';
+          if (displayName.isNotEmpty) {
+            final split = displayName.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+            title = split.take(2).join(', ');
+          }
+        }
+        if (title.isEmpty) {
+          title = 'Titik Lokasi (${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)})';
+        }
+
+        final subtitle = subtitleParts.isNotEmpty
+            ? subtitleParts.join(', ')
+            : 'Koordinat ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
+
+        final shortParts = <String>[];
+        if (rawDistrict != null && rawDistrict.isNotEmpty) {
+          shortParts.add(rawDistrict);
+        } else if (village != null && village.isNotEmpty) {
+          shortParts.add(village);
+        }
+        if (city != null && city.isNotEmpty && !shortParts.any((e) => e.toLowerCase() == city.toLowerCase())) {
+          shortParts.add(city);
+        } else if (state != null && state.isNotEmpty && shortParts.isEmpty) {
+          shortParts.add(state);
+        }
+        final shortCity = shortParts.isNotEmpty ? shortParts.join(', ') : title;
+        final fullAddress = subtitleParts.isNotEmpty ? '$title, $subtitle' : title;
+
+        return ResolvedLocationAddress(
+          latitude: lat,
+          longitude: lng,
+          title: title,
+          subtitle: subtitle,
+          shortCity: shortCity,
+          fullAddress: fullAddress,
+        );
+      }
+    } catch (_) {}
+
+    final coordLabel = '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
+    return ResolvedLocationAddress(
+      latitude: lat,
+      longitude: lng,
+      title: 'Lokasi GPS ($coordLabel)',
+      subtitle: 'Koordinat Satelit Aktif',
+      shortCity: 'GPS ($coordLabel)',
+      fullAddress: 'Lokasi GPS ($coordLabel)',
     );
   }
 

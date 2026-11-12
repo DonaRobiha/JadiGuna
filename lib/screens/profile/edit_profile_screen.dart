@@ -24,7 +24,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final ImagePicker _imagePicker = ImagePicker();
 
   late TextEditingController _nameController;
-  late TextEditingController _bioController;
   late TextEditingController _cityController;
   late TextEditingController _phoneController;
 
@@ -39,9 +38,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = Provider.of<AuthProvider>(context, listen: false).user;
 
     _nameController = TextEditingController(text: user?.name ?? '');
-    _bioController = TextEditingController(
-      text: user?.bio ?? 'Mahasiswa aktif mencari barang kos hemat.',
-    );
     _cityController = TextEditingController(
       text: user?.city ?? 'Sleman, D.I. Yogyakarta',
     );
@@ -55,7 +51,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _bioController.dispose();
     _cityController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -275,7 +270,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final success = await authProvider.updateProfile(
         name: _nameController.text.trim(),
-        bio: _bioController.text.trim(),
         city: _cityController.text.trim(),
         phone: _phoneController.text.trim(),
         photoPath: _photoPath,
@@ -466,13 +460,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   hint: '0812xxxxxxxx',
                   prefixIcon: Icons.phone_outlined,
                   keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _bioController,
-                  label: 'Bio Singkat',
-                  hint: 'Ceritakan sedikit tentang Anda...',
-                  maxLines: 3,
                 ),
                 const SizedBox(height: 28),
                 CustomButton(

@@ -14,6 +14,7 @@ import '../blockchain/blockchain_history_screen.dart';
 import 'add_edit_listing_screen.dart';
 import 'compass_screen.dart';
 import 'pickup_location_map_widget.dart';
+import '../maps/gps_full_map_screen.dart';
 import '../sensors/item_measurement_screen.dart';
 
 class ListingDetailScreen extends StatefulWidget {
@@ -1286,34 +1287,62 @@ const Text(
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: const [
+                                        children: [
                                           Text(
-                                            'Indomaret Point Pandega Marta',
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                            listing.locationName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                                           ),
                                           Text(
-                                            'Aman • Parkir luas • Terang',
-                                            style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                                            distanceMeters != null
+                                                ? 'Jarak ±${LocationHelper.formatDistance(distanceMeters)} • Area COD Aman'
+                                                : 'Aman • Parkir luas • Terang',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF1B281E),
+                                    const SizedBox(width: 8),
+                                    Material(
+                                      color: const Color(0xFF1B281E),
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: InkWell(
                                         borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.near_me_rounded, color: Colors.white, size: 11),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            'Rute',
-                                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                                        onTap: () {
+                                          final targetLat = listing.latitude ?? -7.7601;
+                                          final targetLng = listing.longitude ?? 110.3752;
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => GpsFullMapScreen(
+                                                mode: GpsMapMode.pickupLocation,
+                                                initialLatitude: targetLat,
+                                                initialLongitude: targetLng,
+                                                locationTitle: listing.locationName,
+                                                locationSubtitle: distanceMeters != null
+                                                    ? 'Jarak sekitar ${LocationHelper.formatDistance(distanceMeters)}'
+                                                    : 'Titik Pertemuan COD',
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: const Padding(
+                                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.near_me_rounded, color: Colors.white, size: 12),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'Rute',
+                                                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                                              ),
+                                            ],
                                           ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -1406,151 +1435,6 @@ const Text(
                         ),
                       ),
                     ),
-
-                  const SizedBox(height: 20),
-
-                  // Verifikasi Status Rantai
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: const [
-                                  Icon(Icons.token_rounded, color: AppColors.primary, size: 18),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Verifikasi Status\nRantai',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textPrimary,
-                                      height: 1.2,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFD4E8D7),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Text(
-                                      'SHA-256 Valid',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF265438),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Jejak riwayat kepemilikan dan integritas harga dicatat permanen dalam ledger sirkular lokal.',
-                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Block #1204
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF9F7F3),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: const [
-                                    Text('Block #1204 • Genesis Created', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
-                                    Text('18 Okt • 14:20 WIB', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: const [
-                                    Text('Listing Awal (Rp 180.000)', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                                    Text('0x7f8a...b23d', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-
-                          // Block #1205
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFDECE8).withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: const [
-                                    Text('Block #1205 • Price Updated', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.terracotta)),
-                                    Text('19 Okt • 09:15 WIB', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: const [
-                                    Text('Penyesuaian Harga (Rp 150.000)', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                                    Text('0x3c9e...fe84', style: TextStyle(fontSize: 9.5, color: AppColors.textTertiary)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.lock_outline_rounded, size: 12, color: AppColors.textTertiary),
-                              SizedBox(width: 4),
-                              Text(
-                                'Ledger Konsensus Komunitas Sleman Utara',
-                                style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
 
                   const SizedBox(height: 30),
                 ],

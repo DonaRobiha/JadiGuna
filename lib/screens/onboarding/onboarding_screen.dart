@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../auth/login_screen.dart';
@@ -32,7 +33,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       'icon': Icons.verified_user_rounded,
       'title': 'Dilengkapi Teknologi Pintar & Aman',
-      'desc': 'Dilengkapi verifikasi riwayat status barang, asisten AI untuk iklan, dan login biometrik untuk kenyamanan maksimal Anda.',
+      'desc': 'Dilengkapi verifikasi Blockchain riwayat status barang, asisten AI untuk iklan, dan login biometrik untuk kenyamanan maksimal Anda.',
       'color': AppColors.secondary,
     },
   ];
@@ -50,15 +51,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           TextButton(
             onPressed: _completeOnboarding,
-            child: const Text('Lewati', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(
+              'Lewati',
+              style: TextStyle(color: subTextColor),
+            ),
           ),
         ],
       ),
@@ -82,7 +90,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         Container(
                           padding: const EdgeInsets.all(32),
                           decoration: BoxDecoration(
-                            color: (page['color'] as Color).withValues(alpha: 0.12),
+                            color: (page['color'] as Color).withValues(
+                              alpha: 0.12,
+                            ),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -95,10 +105,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         Text(
                           page['title'] as String,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                            color: textColor,
                             letterSpacing: -0.3,
                           ),
                         ),
@@ -106,9 +116,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         Text(
                           page['desc'] as String,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: AppColors.textSecondary,
+                            color: subTextColor,
                             height: 1.5,
                           ),
                         ),
@@ -144,7 +154,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   const SizedBox(height: 28),
                   CustomButton(
-                    text: _currentIndex == _pages.length - 1 ? 'Mulai Sekarang' : 'Lanjut',
+                    text: _currentIndex == _pages.length - 1
+                        ? 'Mulai Sekarang'
+                        : 'Lanjut',
                     onPressed: () {
                       if (_currentIndex < _pages.length - 1) {
                         _pageController.nextPage(

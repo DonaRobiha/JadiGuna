@@ -12,7 +12,9 @@ import '../../models/listing_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
 import '../../services/ai_service.dart';
+import '../../services/location_service.dart';
 import '../main_navigation_screen.dart';
+import '../maps/gps_full_map_screen.dart';
 import '../sensors/item_measurement_screen.dart';
 
 class AddEditListingScreen extends StatefulWidget {
@@ -66,6 +68,12 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
   bool _allowNego = true;
   bool _hideAddressUntilChat = true;
   bool _measuredWithSensor = false;
+  bool _isResolvingLocation = false;
+
+  double _pickupLatitude = AppConstants.defaultLatitude;
+  double _pickupLongitude = AppConstants.defaultLongitude;
+  String _pickupTitle = 'Mendeteksi lokasi GPS...';
+  String _pickupSubtitle = 'Sleman, D.I. Yogyakarta';
 
   final List<String> _photos = [];
   final Map<String, Uint8List> _photoBytesCache = {};
@@ -119,8 +127,23 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
           ? edit.price.toString()
           : ((edit == null && (widget.initialIsFree ?? false)) ? '' : (edit == null ? '' : '')),
     );
+    final listingProvider = Provider.of<ListingProvider>(context, listen: false);
+    if (edit != null) {
+      _pickupLatitude = edit.latitude ?? listingProvider.userLocation['latitude'] ?? AppConstants.defaultLatitude;
+      _pickupLongitude = edit.longitude ?? listingProvider.userLocation['longitude'] ?? AppConstants.defaultLongitude;
+      final parts = edit.locationName.split(',');
+      _pickupTitle = parts.first.trim().isNotEmpty ? parts.first.trim() : edit.locationName;
+      _pickupSubtitle = parts.length > 1 ? parts.sublist(1).join(',').trim() : listingProvider.userCityName;
+    } else {
+      _pickupLatitude = listingProvider.userLocation['latitude'] ?? AppConstants.defaultLatitude;
+      _pickupLongitude = listingProvider.userLocation['longitude'] ?? AppConstants.defaultLongitude;
+      _pickupTitle = listingProvider.userCityName;
+      _pickupSubtitle = 'Menyesuaikan alamat GPS perangkat...';
+      WidgetsBinding.instance.addPostFrameCallback((_) => _detectInitialGpsLocation());
+    }
+
     _locationController = TextEditingController(
-      text: edit?.locationName ?? 'Kos Griya Mahasiswa, Pogung Kidul, Kec. Mlati, Kabupaten Sleman, D.I. Yogyakarta',
+      text: edit?.locationName ?? listingProvider.userCityName,
     );
 
     _selectedCategory = edit?.categoryName ?? widget.initialCategory ?? 'Perlengkapan Rumah';
@@ -132,6 +155,61 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
     } else if (widget.initialImagePath != null && widget.initialImagePath!.isNotEmpty) {
       _photos.add(widget.initialImagePath!);
     }
+  }
+
+  Future<void> _detectInitialGpsLocation() async {
+    if (!mounted) return;
+    setState(() => _isResolvingLocation = true);
+    try {
+      final locationService = LocationService.instance;
+      final pos = await locationService.getCurrentLocation(highAccuracy: true);
+      final lat = pos?.latitude ?? _pickupLatitude;
+      final lng = pos?.longitude ?? _pickupLongitude;
+      final resolved = await locationService.reverseGeocode(lat, lng);
+      if (!mounted) return;
+      setState(() {
+        _pickupLatitude = lat;
+        _pickupLongitude = lng;
+        _pickupTitle = resolved.title;
+        _pickupSubtitle = resolved.subtitle;
+        _locationController.text = resolved.fullAddress;
+        _isResolvingLocation = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isResolvingLocation = false);
+      }
+    }
+  }
+
+  Future<void> _openGpsPicker() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GpsFullMapScreen(
+          mode: GpsMapMode.userGps,
+          initialLatitude: _pickupLatitude,
+          initialLongitude: _pickupLongitude,
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+    final lat = (result['latitude'] as num?)?.toDouble() ?? _pickupLatitude;
+    final lng = (result['longitude'] as num?)?.toDouble() ?? _pickupLongitude;
+    final title = (result['title'] as String?)?.trim() ?? 'Titik COD Terpilih';
+    final subtitle = (result['subtitle'] as String?)?.trim() ?? '';
+    final fullAddress = (result['fullAddress'] as String?)?.trim() ?? title;
+
+    setState(() {
+      _pickupLatitude = lat;
+      _pickupLongitude = lng;
+      _pickupTitle = title;
+      _pickupSubtitle = subtitle.isNotEmpty
+          ? subtitle
+          : 'Koordinat ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
+      _locationController.text = fullAddress;
+    });
   }
 
   @override
@@ -637,6 +715,8 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
         price: price,
         condition: _selectedCondition,
         locationName: _locationController.text.trim(),
+        latitude: _pickupLatitude,
+        longitude: _pickupLongitude,
         images: _photos,
       );
       await listingProvider.updateListing(updated);
@@ -650,6 +730,8 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
         price: price,
         condition: _selectedCondition,
         locationName: _locationController.text.trim(),
+        latitude: _pickupLatitude,
+        longitude: _pickupLongitude,
         images: _photos,
         sellerName: currentUserName,
       );
@@ -1509,55 +1591,87 @@ class _AddEditListingScreenState extends State<AddEditListingScreen> {
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
+              Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  onTap: _openGpsPicker,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE8F2EA),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.location_on_rounded, color: AppColors.primary, size: 20),
-                      ),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'Kos Griya Mahasiswa, Pogung Kidul',
-                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE8F2EA),
+                            shape: BoxShape.circle,
                           ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Kec. Mlati, Kabupaten Sleman, D.I. Yogyakarta',
-                            style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                          child: Center(
+                            child: _isResolvingLocation
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary,
+                                    ),
+                                  )
+                                : const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 20),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _pickupTitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _pickupSubtitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Material(
+                          color: const Color(0xFFF1EFEA),
+                          borderRadius: BorderRadius.circular(14),
+                          child: InkWell(
+                            onTap: _openGpsPicker,
+                            borderRadius: BorderRadius.circular(14),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.my_location_rounded, size: 12, color: AppColors.primary),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Ganti GPS',
+                                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1EFEA),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Text(
-                        'Ganti GPS',
-                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(height: 8),

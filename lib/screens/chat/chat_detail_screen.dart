@@ -1566,6 +1566,7 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
   late DateTime _date;
   late TimeOfDay _time;
   late int _pointIndex;
+  _SafePoint? _customGpsPoint;
   String? _error;
 
   @override
@@ -1614,12 +1615,40 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
     }
   }
 
+  Future<void> _pickCustomGpsPoint() async {
+    final base = _customGpsPoint ?? _safePoints[_pointIndex];
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GpsFullMapScreen(
+          mode: GpsMapMode.userGps,
+          initialLatitude: base.latitude,
+          initialLongitude: base.longitude,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    final lat = (result['latitude'] as num?)?.toDouble();
+    final lng = (result['longitude'] as num?)?.toDouble();
+    if (lat == null || lng == null) return;
+    final name = (result['title'] as String?)?.trim() ?? 'Titik GPS Pilihan';
+    final note = (result['subtitle'] as String?)?.trim() ?? 'Titik pertemuan COD via GPS';
+    setState(() {
+      _customGpsPoint = _SafePoint(name, note, lat, lng);
+      _pointIndex = -1;
+      _error = null;
+    });
+  }
+
   void _submit() {
     if (!_selected.isAfter(DateTime.now())) {
       setState(() => _error = 'Pilih waktu yang belum lewat.');
       return;
     }
-    Navigator.pop(context, _PickupChoice(_safePoints[_pointIndex], _selected));
+    final chosen = _pointIndex == -1 && _customGpsPoint != null
+        ? _customGpsPoint!
+        : _safePoints[_pointIndex];
+    Navigator.pop(context, _PickupChoice(chosen, _selected));
   }
 
   @override
@@ -1719,6 +1748,50 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
                     ),
                   ),
                 ),
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: _pickCustomGpsPoint,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _pointIndex == -1
+                            ? Icons.radio_button_checked
+                            : Icons.my_location_rounded,
+                        size: 20,
+                        color: _pointIndex == -1
+                            ? AppColors.primary
+                            : AppColors.terracotta,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _customGpsPoint?.name ?? 'Pilih Titik via GPS / Peta',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            Text(
+                              _customGpsPoint?.note ?? 'Gunakan GPS akurat & nama alamat terkini',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textSecondary),
+                    ],
+                  ),
+                ),
+              ),
               if (_error != null) ...[
                 const SizedBox(height: 6),
                 Text(

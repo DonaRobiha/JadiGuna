@@ -47,9 +47,12 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
   double _currentZoom = 16.5;
 
   bool _isLocating = false;
+  bool _isResolvingAddress = false;
   String _statusText = 'Mendeteksi sinyal GPS...';
   String? _errorMessage;
   double? _accuracyMeters;
+  ResolvedLocationAddress? _resolvedAddress;
+  LatLng? _lastGeocodedPoint;
 
   // Tile layer style (0: Google Maps Standard, 1: Google Maps Satellite/Hybrid, 2: Google Maps Terrain, 3: OpenStreetMap)
   int _tileStyleIndex = 0;
@@ -128,10 +131,33 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
             _statusText = 'GPS Terhubung (Akurasi ±${position.accuracy.toStringAsFixed(1)}m)';
           });
           _mapController.move(liveCenter, _mapController.camera.zoom);
+          _updateResolvedAddress(liveCenter);
         },
         onError: (_) {},
       );
     } catch (_) {}
+  }
+
+  Future<void> _updateResolvedAddress(LatLng point, {bool force = false}) async {
+    if (!force && _lastGeocodedPoint != null) {
+      final movedMeters = Geolocator.distanceBetween(
+        _lastGeocodedPoint!.latitude,
+        _lastGeocodedPoint!.longitude,
+        point.latitude,
+        point.longitude,
+      );
+      if (movedMeters < 15 && _resolvedAddress != null) return;
+    }
+
+    _lastGeocodedPoint = point;
+    if (mounted) setState(() => _isResolvingAddress = true);
+
+    final resolved = await _locationService.reverseGeocode(point.latitude, point.longitude);
+    if (!mounted) return;
+    setState(() {
+      _resolvedAddress = resolved;
+      _isResolvingAddress = false;
+    });
   }
 
   Future<void> _fetchCurrentGpsLocation() async {
@@ -167,6 +193,7 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
           _statusText = 'GPS Terhubung (Akurasi ±${pos.accuracy.toStringAsFixed(1)}m)';
         });
         _mapController.move(newCenter, 16.8);
+        _updateResolvedAddress(newCenter, force: true);
       } else {
         // Fallback to last known position
         final fallback = await _locationService.getLastKnownOrCoordinates();
@@ -176,9 +203,10 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
           _currentCenter = newCenter;
           _isLocating = false;
           _errorMessage = 'Sinyal GPS belum aktif atau lemah. Menggunakan lokasi tersimpan.';
-          _statusText = 'Lokasi Terakhir / Default';
+          _statusText = 'Lokasi Terakhir / Jaringan';
         });
         _mapController.move(newCenter, 15.5);
+        _updateResolvedAddress(newCenter, force: true);
       }
 
       // 3. Aktifkan pembaruan live stream
@@ -213,17 +241,26 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
     _mapController.move(_currentCenter, 16.0);
   }
 
-  void _applyLocationToProvider() {
+  Future<void> _applyLocationToProvider() async {
     final provider = Provider.of<ListingProvider>(context, listen: false);
     final lat = _currentCenter.latitude;
     final lng = _currentCenter.longitude;
 
-    // Apply coordinates to listing provider
-    provider.setUserCity(
-      'Lokasi GPS Terkini (${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)})',
-      lat,
-      lng,
-    );
+    var resolved = _resolvedAddress;
+    if (resolved == null ||
+        (resolved.latitude - lat).abs() > 0.0002 ||
+        (resolved.longitude - lng).abs() > 0.0002) {
+      setState(() => _isResolvingAddress = true);
+      resolved = await _locationService.reverseGeocode(lat, lng);
+      if (!mounted) return;
+      setState(() {
+        _resolvedAddress = resolved;
+        _isResolvingAddress = false;
+      });
+    }
+
+    await provider.setUserCity(resolved.shortCity, lat, lng);
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -233,7 +270,7 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Lokasi GPS berhasil diterapkan: ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
+                'Lokasi diterapkan: ${resolved.fullAddress}',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
@@ -246,7 +283,14 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
       ),
     );
 
-    Navigator.pop(context);
+    Navigator.pop(context, <String, dynamic>{
+      'latitude': lat,
+      'longitude': lng,
+      'title': resolved.title,
+      'subtitle': resolved.subtitle,
+      'shortName': resolved.shortCity,
+      'fullAddress': resolved.fullAddress,
+    });
   }
 
   @override
@@ -281,6 +325,7 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
                     _statusText = 'Titik Dipilih Manual di Peta';
                     _accuracyMeters = null;
                   });
+                  _updateResolvedAddress(point, force: true);
                 }
               },
             ),
@@ -631,6 +676,7 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
                                   _accuracyMeters = null;
                                 });
                                 _mapController.move(newPoint, 17.0);
+                                _updateResolvedAddress(newPoint, force: true);
                               },
                             );
                           },
@@ -816,7 +862,9 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isUserMode ? 'Satelit GPS Perangkat Terkini' : (widget.locationTitle ?? 'Lokasi COD'),
+                      isUserMode
+                          ? (_resolvedAddress?.title ?? 'Mendeteksi Alamat GPS...')
+                          : (widget.locationTitle ?? 'Lokasi COD'),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -825,13 +873,27 @@ class _GpsFullMapScreenState extends State<GpsFullMapScreen> with SingleTickerPr
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _statusText,
+                      isUserMode && _resolvedAddress != null
+                          ? _resolvedAddress!.subtitle
+                          : _statusText,
                       style: TextStyle(
                         fontSize: 12,
                         color: _errorMessage != null ? AppColors.error : AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    if (_isResolvingAddress && isUserMode)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Text(
+                          'Memuat nama jalan & wilayah...',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textTertiary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
                     if (_accuracyMeters != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -10,6 +12,10 @@ import 'biometric_service.dart';
 class AuthService {
   final LocalDatabase _localDb = LocalDatabase.instance;
   final BiometricService _biometricService = BiometricService();
+
+  String _hashPassword(String password) {
+    return sha256.convert(utf8.encode('jadiguna_salt:$password')).toString();
+  }
 
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;
@@ -96,8 +102,12 @@ class AuthService {
     // Save in local database
     await _localDb.saveProfile(newUser);
 
-    // Save session
+    // Save session & local password hash for offline validation
+    final normalizedEmail = email.trim().toLowerCase();
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('local_auth_hash_$normalizedEmail', _hashPassword(password));
+    await prefs.setString('local_auth_name_$normalizedEmail', newUser.name);
+    await prefs.setString('local_auth_id_$normalizedEmail', newUser.id);
     await prefs.setBool(AppConstants.keyIsLoggedIn, true);
     await prefs.setString(AppConstants.keyUserId, newUser.id);
     await prefs.setString(AppConstants.keyUserName, newUser.name);
@@ -112,10 +122,13 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    final prefs = await SharedPreferences.getInstance();
+
     if (SupabaseConstants.isConfigured) {
       try {
         final authResponse = await Supabase.instance.client.auth.signInWithPassword(
-          email: email,
+          email: normalizedEmail,
           password: password,
         );
         if (authResponse.user != null) {
@@ -123,13 +136,15 @@ class AuthService {
           final profile = await _localDb.getProfile(userId) ??
               UserModel(
                 id: userId,
-                name: authResponse.user!.userMetadata?['name'] ?? email.split('@').first,
-                email: email,
+                name: authResponse.user!.userMetadata?['name'] ?? normalizedEmail.split('@').first,
+                email: normalizedEmail,
                 createdAt: DateTime.now(),
               );
           await _localDb.saveProfile(profile);
 
-          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('local_auth_hash_$normalizedEmail', _hashPassword(password));
+          await prefs.setString('local_auth_name_$normalizedEmail', profile.name);
+          await prefs.setString('local_auth_id_$normalizedEmail', profile.id);
           await prefs.setBool(AppConstants.keyIsLoggedIn, true);
           await prefs.setString(AppConstants.keyUserId, profile.id);
           await prefs.setString(AppConstants.keyUserName, profile.name);
@@ -138,31 +153,47 @@ class AuthService {
           _currentUser = profile;
           return profile;
         }
-      } catch (e) {
-        // Fallback to local authentication check
+      } on AuthException catch (e) {
+        // Jika ditolak Supabase, cek apakah akun tersimpan lokal secara offline
+        final savedLocalHash = prefs.getString('local_auth_hash_$normalizedEmail');
+        if (savedLocalHash == null) {
+          final msg = e.message.toLowerCase();
+          if (msg.contains('invalid login') || msg.contains('invalid_credentials')) {
+            throw Exception('Email atau password salah.');
+          }
+          throw Exception(e.message);
+        }
+      } catch (_) {
+        // Gangguan jaringan: lanjutkan validasi lokal offline-first
       }
     }
 
-    // Local / Offline authentication
-    final prefs = await SharedPreferences.getInstance();
-    final savedEmail = prefs.getString(AppConstants.keyUserEmail);
-    final savedId = prefs.getString(AppConstants.keyUserId) ?? 'user-current-1';
+    // Validasi akun terdaftar lokal
+    final savedLocalHash = prefs.getString('local_auth_hash_$normalizedEmail');
 
-    String name = 'Budi Mahasiswa';
-    if (savedEmail != null && savedEmail.toLowerCase() == email.toLowerCase()) {
-      name = prefs.getString(AppConstants.keyUserName) ?? name;
+    if (savedLocalHash != null) {
+      if (savedLocalHash != _hashPassword(password)) {
+        throw Exception('Password tidak sesuai. Silakan periksa kembali.');
+      }
     } else {
-      name = email.split('@').first;
+      throw Exception('Akun belum terdaftar. Silakan daftar terlebih dahulu.');
     }
 
-    final user = UserModel(
-      id: savedId,
-      name: name,
-      email: email,
-      city: AppConstants.defaultCity,
-      phoneNumber: '08123456789',
-      createdAt: DateTime.now(),
-    );
+    final savedId = prefs.getString('local_auth_id_$normalizedEmail') ?? const Uuid().v4();
+    final existingProfile = await _localDb.getProfile(savedId);
+
+    final savedName = prefs.getString('local_auth_name_$normalizedEmail') ??
+        normalizedEmail.split('@').first;
+
+    final user = existingProfile ??
+        UserModel(
+          id: savedId,
+          name: savedName,
+          email: normalizedEmail,
+          city: AppConstants.defaultCity,
+          phoneNumber: '08123456789',
+          createdAt: DateTime.now(),
+        );
 
     await _localDb.saveProfile(user);
     await prefs.setBool(AppConstants.keyIsLoggedIn, true);
@@ -183,15 +214,17 @@ class AuthService {
     if (authenticated) {
       await initSession();
       if (_currentUser == null) {
-        // Auto-assign default active profile if previously logged in
         final prefs = await SharedPreferences.getInstance();
-        final email = prefs.getString(AppConstants.keyUserEmail) ?? 'mahasiswa@jadiguna.id';
-        final name = prefs.getString(AppConstants.keyUserName) ?? 'Pengguna jadiGuna';
-        final id = prefs.getString(AppConstants.keyUserId) ?? 'user-current-1';
+        final email = prefs.getString(AppConstants.keyUserEmail);
+        final name = prefs.getString(AppConstants.keyUserName);
+        final id = prefs.getString(AppConstants.keyUserId);
+        if (email == null || id == null) {
+          return false;
+        }
 
         final user = UserModel(
           id: id,
-          name: name,
+          name: name ?? email.split('@').first,
           email: email,
           city: AppConstants.defaultCity,
           createdAt: DateTime.now(),

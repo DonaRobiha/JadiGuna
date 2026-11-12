@@ -3,11 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../providers/listing_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/listing_card.dart';
+import '../blockchain/blockchain_history_screen.dart';
 import '../listing/listing_detail_screen.dart';
 import '../maps/gps_full_map_screen.dart';
+import '../profile/settings_screen.dart';
 import '../search/search_screen.dart';
 import '../sensors/sensors_screen.dart';
 
@@ -160,6 +163,125 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showNotificationsSheet(BuildContext context, ListingProvider listingProvider) {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        final convCount = chatProvider.conversations.length;
+        final listingCount = listingProvider.listings.length;
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.notifications_active_rounded, color: AppColors.primary, size: 22),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Notifikasi & Aktivitas Terbaru',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: textColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.primarySurface,
+                    child: Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary, size: 20),
+                  ),
+                  title: Text(
+                    convCount > 0
+                        ? '$convCount Percakapan COD Aktif'
+                        : 'Belum ada pesan baru',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: textColor),
+                  ),
+                  subtitle: Text(
+                    convCount > 0
+                        ? 'Cek tab Chat untuk melihat balasan penjual atau jadwal COD.'
+                        : 'Mulai chat penjual dari detail barang untuk janji temu COD.',
+                    style: TextStyle(fontSize: 11.5, color: subTextColor),
+                  ),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.primarySurface,
+                    child: Icon(Icons.verified_user_outlined, color: Colors.teal, size: 20),
+                  ),
+                  title: Text(
+                    'Blockchain Ledger & Status Barang',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: textColor),
+                  ),
+                  subtitle: Text(
+                    '$listingCount barang di sekitar Anda terpantau riwayat statusnya.',
+                    style: TextStyle(fontSize: 11.5, color: subTextColor),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BlockchainHistoryScreen()),
+                    );
+                  },
+                ),
+                const Divider(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(sheetCtx);
+                          listingProvider.randomizeRecommendations();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Rekomendasi barang berhasil diacak.'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.shuffle_rounded, size: 16),
+                        label: const Text('Acak Barang', style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(sheetCtx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          );
+                        },
+                        icon: const Icon(Icons.tune_rounded, size: 16),
+                        label: const Text('Atur & Uji Push', style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final listingProvider = Provider.of<ListingProvider>(context);
@@ -254,19 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: textColor,
                     size: 24,
                   ),
-                  onPressed: () {
-                    listingProvider.randomizeRecommendations();
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Notifikasi terbaru telah diperbarui.',
-                        ),
-                        duration: Duration(seconds: 1),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
+                  onPressed: () => _showNotificationsSheet(context, listingProvider),
                 ),
               ],
             ),

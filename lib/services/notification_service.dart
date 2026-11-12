@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../core/constants/app_constants.dart';
 
 class NotificationService {
   static final NotificationService instance = NotificationService._init();
@@ -73,8 +75,17 @@ class NotificationService {
     required String title,
     required String body,
     String? payload,
+    bool ignorePreference = false,
   }) async {
     try {
+      if (!ignorePreference) {
+        final prefs = await SharedPreferences.getInstance();
+        final enabled = prefs.getBool(AppConstants.keyNotificationsEnabled) ?? true;
+        if (!enabled) {
+          return false;
+        }
+      }
+
       if (!_isInitialized) {
         await init();
       }

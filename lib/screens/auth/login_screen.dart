@@ -19,8 +19,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'mahasiswa@jadiguna.id');
-  final _passwordController = TextEditingController(text: 'password123');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
@@ -87,9 +87,12 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
@@ -108,42 +111,41 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppColors.primarySurface,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      
                       child: Image.asset(
-                      'assets/logo_jadiguna.png',
-                      width: 40,
-                      height: 40,
-                       fit: BoxFit.contain,
-                        ),
+                        'assets/logo_jadiguna.png',
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
+                    Text(
                       AppConstants.appName,
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
+                        color: isDark ? AppColors.primaryLight : AppColors.primary,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 32),
 
-                const Text(
+                Text(
                   'Selamat Datang Kembali!',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: textColor,
                     letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Masuk untuk mengelola iklan, berkirim pesan, dan menemukan barang di sekitar.',
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.textSecondary,
+                    color: subTextColor,
                     height: 1.4,
                   ),
                 ),
@@ -224,40 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
                 ],
 
-                // Demo Guest/Examiner Login Badge
-                InkWell(
-                  onTap: () {
-                    _emailController.text = 'dosen.penguji@jadiguna.id';
-                    _passwordController.text = 'password123';
-                    _handleLogin();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primarySurface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.primaryLight),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.flash_on_rounded, color: AppColors.primary, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'Akses Cepat Penguji (Demo Account)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
                 // Register Prompt
                 Row(

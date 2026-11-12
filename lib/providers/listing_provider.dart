@@ -1,5 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../core/constants/app_constants.dart';
 import '../models/listing_model.dart';
 import '../models/category_model.dart';
 import '../services/listing_service.dart';
@@ -66,20 +68,33 @@ class ListingProvider extends ChangeNotifier {
 
   Future<void> refreshLocation() async {
     try {
-      final pos = await _locationService.getCurrentLocation();
+      final pos = await _locationService.getCurrentLocation(highAccuracy: true);
       if (pos != null) {
         _userLocation = {'latitude': pos.latitude, 'longitude': pos.longitude};
       } else {
         _userLocation = await _locationService.getLastKnownOrCoordinates();
       }
       notifyListeners();
+
+      final lat = _userLocation['latitude']!;
+      final lng = _userLocation['longitude']!;
+      final resolved = await _locationService.reverseGeocode(lat, lng);
+      if (resolved.shortCity.isNotEmpty) {
+        _userCityName = resolved.shortCity;
+        notifyListeners();
+      }
     } catch (_) {}
   }
 
-  void setUserCity(String cityName, double lat, double lng) {
+  Future<void> setUserCity(String cityName, double lat, double lng) async {
     _userCityName = cityName;
     _userLocation = {'latitude': lat, 'longitude': lng};
     notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(AppConstants.keyUserLatitude, lat);
+      await prefs.setDouble(AppConstants.keyUserLongitude, lng);
+    } catch (_) {}
   }
 
   Future<void> loadListings() async {
