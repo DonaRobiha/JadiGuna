@@ -36,13 +36,10 @@ class AiService {
   static String? _cachedApiKey;
 
   // Model Gemini resmi & stabil dengan dukungan multimodal vision
-  static const List<String> _geminiModels = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-2.5-flash',
-    'gemini-1.5-pro',
+      static const List<String> _geminiModels = [
+    'gemini-3.8-flash',
+    'gemini-3.5-flash-lite',
   ];
-
   static Future<String?> getApiKey() async {
     if (_cachedApiKey != null && _cachedApiKey!.isNotEmpty) {
       return _cachedApiKey;
@@ -113,83 +110,112 @@ class AiService {
       throw Exception('Gemini API key belum dikonfigurasi');
     }
 
+    // Susun isi permintaan sekali saja, dipakai ulang untuk semua model
+    final parts = <Map<String, dynamic>>[];
+
+    if (imageBytes != null && imageBytes.isNotEmpty) {
+      String mime = 'image/jpeg';
+      if (imageBytes.length > 4) {
+        if (imageBytes[0] == 0x89 &&
+            imageBytes[1] == 0x50 &&
+            imageBytes[2] == 0x4E &&
+            imageBytes[3] == 0x47) {
+          mime = 'image/png';
+        } else if (imageBytes[0] == 0x52 &&
+            imageBytes[1] == 0x49 &&
+            imageBytes[2] == 0x46 &&
+            imageBytes[3] == 0x46) {
+          mime = 'image/webp';
+        }
+      }
+      parts.add({
+        'inlineData': {
+          'mimeType': mime,
+          'data': base64Encode(imageBytes),
+        },
+      });
+    }
+    parts.add({'text': prompt});
+
+    final body = jsonEncode({
+      'contents': [
+        {'parts': parts},
+      ],
+      'generationConfig': {
+        'temperature': temperature,
+        if (asJson) 'responseMimeType': 'application/json',
+      },
+    });
+
     Exception? lastError;
+    final allErrors = <String>[];
 
     for (final model in _geminiModels) {
-      try {
-        final endpoint =
-            'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey';
+      final endpoint =
+          'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
 
-        final parts = <Map<String, dynamic>>[];
-
-        if (imageBytes != null && imageBytes.isNotEmpty) {
-          // Deteksi MIME type dari magic bytes
-          String mime = 'image/jpeg';
-          if (imageBytes.length > 4) {
-            if (imageBytes[0] == 0x89 &&
-                imageBytes[1] == 0x50 &&
-                imageBytes[2] == 0x4E &&
-                imageBytes[3] == 0x47) {
-              mime = 'image/png';
-            } else if (imageBytes[0] == 0x52 &&
-                imageBytes[1] == 0x49 &&
-                imageBytes[2] == 0x46 &&
-                imageBytes[3] == 0x46) {
-              mime = 'image/webp';
-            }
-          }
-          // Perbaikan protokol REST Gemini Multimodal: gunakan camelCase (inlineData & mimeType)
-          parts.add({
-            'inlineData': {
-              'mimeType': mime,
-              'data': base64Encode(imageBytes),
-            },
-          });
-        }
-
-        parts.add({'text': prompt});
-
-        final response = await http
-            .post(
-              Uri.parse(endpoint),
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey,
-              },
-              body: jsonEncode({
-                'contents': [
-                  {'parts': parts},
-                ],
-                'generationConfig': {
-                  'temperature': temperature,
-                  if (asJson) 'responseMimeType': 'application/json',
+      // Maksimal 3 percobaan per model
+      for (var attempt = 1; attempt <= 3; attempt++) {
+        try {
+          final response = await http
+              .post(
+                Uri.parse(endpoint),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-goog-api-key': apiKey,
                 },
-              }),
-            )
-            .timeout(const Duration(seconds: 25));
+                body: body,
+              )
+              .timeout(const Duration(seconds: 30));
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final text =
-              data['candidates']?[0]?['content']?['parts']?[0]?['text'];
-          if (text is String && text.trim().isNotEmpty) {
-            return cleanJsonResponse(text);
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            final text =
+                data['candidates']?[0]?['content']?['parts']?[0]?['text'];
+            if (text is String && text.trim().isNotEmpty) {
+              return cleanJsonResponse(text);
+            }
+            lastError =
+                Exception('Gemini ($model) mengembalikan respons kosong');
+            allErrors.add('$model → respons kosong');
+            break; // coba model berikutnya
           }
-        } else {
+
           lastError = Exception(
             'Gemini ($model) HTTP ${response.statusCode}: ${response.body}',
           );
+          allErrors.add('$model → HTTP ${response.statusCode}');
           debugPrint('Gemini HTTP Error: $lastError');
+
+          // 503 (sibuk), 429 (limit), 500: tunggu lalu ulangi
+          final retryable = response.statusCode == 503 ||
+              response.statusCode == 429 ||
+              response.statusCode == 500;
+
+          if (retryable && attempt < 3) {
+            await Future.delayed(Duration(seconds: attempt * 2)); // 2s, 4s
+            continue;
+          }
+          break; // 404/400/dll atau percobaan habis: pindah ke model berikutnya
+        } catch (e) {
+          lastError = Exception('Gemini ($model) gagal: $e');
+          allErrors.add('$model → $e');
+          debugPrint('Gemini Exception: $lastError');
+          if (attempt < 3) {
+            await Future.delayed(Duration(seconds: attempt * 2));
+            continue;
+          }
+          break;
         }
-      } catch (e) {
-        lastError = Exception('Gemini ($model) gagal: $e');
-        debugPrint('Gemini Exception: $lastError');
       }
     }
 
-    throw lastError ?? Exception('Tidak dapat menghubungi layanan Gemini');
+    throw Exception(
+      allErrors.isEmpty
+          ? (lastError?.toString() ?? 'Tidak dapat menghubungi layanan Gemini')
+          : 'Semua model gagal: ${allErrors.join(' | ')}',
+    );
   }
-
   // ---------------------------------------------------------------
   // 1. Buat Draf Iklan (Multimodal: Teks + Foto)
   // ---------------------------------------------------------------

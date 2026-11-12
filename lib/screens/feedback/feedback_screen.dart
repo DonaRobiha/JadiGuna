@@ -36,7 +36,8 @@ class FeedbackScreen extends StatefulWidget {
 
 class _FeedbackScreenState extends State<FeedbackScreen> {
   final LocalDatabase _localDb = LocalDatabase.instance;
-  final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _kesanController = TextEditingController();
+  final TextEditingController _saranController = TextEditingController();
 
   static const String _categoryMatkul = 'Mata Kuliah PAM';
 
@@ -52,7 +53,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
   @override
   void dispose() {
-    _messageController.dispose();
+    _kesanController.dispose();
+    _saranController.dispose();
     super.dispose();
   }
 
@@ -63,16 +65,20 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   }
 
   Future<void> _submitFeedback() async {
-    final message = _messageController.text.trim();
-    if (message.isEmpty) {
+    final kesan = _kesanController.text.trim();
+    final saran = _saranController.text.trim();
+    if (kesan.isEmpty && saran.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Tuliskan tambahan saran atau kesan Anda.'),
+          content: Text('Isi minimal salah satu: kesan atau saran.'),
           backgroundColor: AppColors.warning,
         ),
       );
       return;
     }
+
+    // Simpan kesan & saran dalam satu pesan dengan penanda
+    final message = '[KESAN]\n$kesan\n[SARAN]\n$saran';
 
     setState(() => _isSubmitting = true);
     final user = Provider.of<AuthProvider>(context, listen: false).user;
@@ -88,7 +94,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     );
 
     await _localDb.insertFeedback(feedback);
-    _messageController.clear();
+    _kesanController.clear();
+    _saranController.clear();
     await _loadPastFeedback();
 
     if (!mounted) return;
@@ -99,6 +106,24 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         content: Text('Tambahan berhasil disimpan. Terima kasih!'),
         backgroundColor: AppColors.primary,
       ),
+    );
+  }
+
+  /// Memisahkan pesan tersimpan menjadi kesan & saran.
+  /// Data lama (tanpa penanda) dianggap sebagai satu teks biasa.
+  ({String kesan, String saran, String umum}) _parseMessage(String msg) {
+    if (!msg.startsWith('[KESAN]')) {
+      return (kesan: '', saran: '', umum: msg);
+    }
+    final body = msg.substring('[KESAN]'.length);
+    final idx = body.indexOf('[SARAN]');
+    if (idx == -1) {
+      return (kesan: body.trim(), saran: '', umum: '');
+    }
+    return (
+      kesan: body.substring(0, idx).trim(),
+      saran: body.substring(idx + '[SARAN]'.length).trim(),
+      umum: '',
     );
   }
 
@@ -238,7 +263,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Ada tambahan saran atau kesan lain? Tulis di sini.',
+                    'Ada kesan atau saran lain? Tulis di kotak masing-masing.',
                     style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 12),
@@ -265,12 +290,46 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                       );
                     }),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  const Row(
+                    children: [
+                      Icon(Icons.favorite_rounded,
+                          color: AppColors.primary, size: 18),
+                      SizedBox(width: 6),
+                      Text(
+                        'Kesan Anda',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   TextField(
-                    controller: _messageController,
+                    controller: _kesanController,
                     maxLines: 4,
                     decoration: const InputDecoration(
-                      hintText: 'Tambahan saran atau kesan tentang mata kuliah...',
+                      hintText: 'Tulis kesan Anda tentang mata kuliah dan dosen...',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Row(
+                    children: [
+                      Icon(Icons.lightbulb_rounded,
+                          color: AppColors.primary, size: 18),
+                      SizedBox(width: 6),
+                      Text(
+                        'Saran Anda',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _saranController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      hintText: 'Tulis saran Anda untuk mata kuliah dan dosen...',
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -288,7 +347,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
             // Riwayat tambahan
             if (_pastFeedback.isNotEmpty) ...[
               const Text(
-                'Tambahan yang Telah Disimpan',
+                'Kesan & Saran Tambahan yang Telah Disimpan',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
@@ -298,14 +357,11 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 itemCount: _pastFeedback.length,
                 itemBuilder: (context, index) {
                   final item = _pastFeedback[index];
+                  final parsed = _parseMessage(item.message);
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: _cardDecoration(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -326,14 +382,32 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          item.message,
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textPrimary,
-                              height: 1.4),
-                        ),
+                        if (parsed.kesan.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildTextCard(
+                            icon: Icons.favorite_rounded,
+                            title: 'Kesan',
+                            text: parsed.kesan,
+                          ),
+                        ],
+                        if (parsed.saran.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildTextCard(
+                            icon: Icons.lightbulb_rounded,
+                            title: 'Saran',
+                            text: parsed.saran,
+                          ),
+                        ],
+                        if (parsed.umum.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            parsed.umum,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textPrimary,
+                                height: 1.4),
+                          ),
+                        ],
                       ],
                     ),
                   );
